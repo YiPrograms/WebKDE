@@ -26,48 +26,132 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                             canvas_height = int(client_info.get("height") or parts[4])
                             orientation = "horizontal" if canvas_width >= canvas_height else "vertical"
 
-                            request_dir = pathlib.Path(os.environ.get(
-                                "WEBKDE_BRIDGE_DIR", "/config/.XDG/webkde-bridge"
-                            ))
-                            request_dir.mkdir(parents=True, exist_ok=True)
-                            request = f"{count},{orientation},{canvas_width},{canvas_height}\\n"
-                            temporary = request_dir / "layout-request.tmp"
-                            temporary.write_text(request)
-                            temporary.replace(request_dir / "layout-request")
+                            previous_task = getattr(self, "webkde_layout_task", None)
+                            if previous_task and not previous_task.done():
+                                previous_task.cancel()
 
-                            # Give the host bridge time to enable the requested KWin outputs,
-                            # then place their outer windows through Sway's native IPC.
-                            await asyncio.sleep(1.0)
-                            sockets = list(pathlib.Path("/config/.XDG").glob("sway-ipc.*.sock"))
-                            if not sockets:
-                                raise OSError("Sway IPC socket is unavailable")
-                            sway_socket = max(sockets, key=lambda path: path.stat().st_mtime)
-                            offset = 0
-                            for index in range(max_screens):
-                                criteria = f'[title=".*WL-{index}.*"]'
-                                if index >= count:
-                                    command = f"{criteria} move scratchpad"
-                                elif orientation == "horizontal":
-                                    size = canvas_width // count + (1 if index < canvas_width % count else 0)
-                                    command = (f"{criteria} move workspace current, floating enable, "
-                                               f"resize set width {size} px height {canvas_height} px, "
-                                               f"move position {offset} px 0 px")
-                                    offset += size
-                                else:
-                                    size = canvas_height // count + (1 if index < canvas_height % count else 0)
-                                    command = (f"{criteria} move workspace current, floating enable, "
-                                               f"resize set width {canvas_width} px height {size} px, "
-                                               f"move position 0 px {offset} px")
-                                    offset += size
-                                process = await asyncio.create_subprocess_exec(
-                                    "swaymsg", "--socket", str(sway_socket), command,
-                                    stdout=asyncio.subprocess.DEVNULL,
-                                    stderr=asyncio.subprocess.PIPE,
-                                )
-                                _, stderr = await process.communicate()
-                                if process.returncode:
-                                    raise OSError(stderr.decode(errors="replace").strip())
-                            await websocket.send(f"WEBKDE_LAYOUT_APPLIED,{count},{orientation}")
+                            async def apply_webkde_layout(
+                                layout_count=count,
+                                layout_orientation=orientation,
+                                layout_width=canvas_width,
+                                layout_height=canvas_height,
+                                layout_max_screens=max_screens,
+                                layout_message=message,
+                            ):
+                                try:
+                                    # Keep consuming WebSocket messages while this timer runs.
+                                    # A newer resize or screen-count request cancels this task.
+                                    await asyncio.sleep(0.3)
+
+                                    request_dir = pathlib.Path(os.environ.get(
+                                        "WEBKDE_BRIDGE_DIR", "/config/.XDG/webkde-bridge"
+                                    ))
+                                    request_dir.mkdir(parents=True, exist_ok=True)
+                                    request_id = time.monotonic_ns()
+                                    request = (f"{layout_count},{layout_orientation},"
+                                               f"{layout_width},{layout_height},{request_id}\\n")
+                                    request_path = request_dir / "layout-request"
+                                    temporary = request_dir / "layout-request.tmp"
+                                    temporary.write_text(request)
+                                    temporary.replace(request_path)
+
+                                    # Allow the host KScreen bridge one polling interval to
+                                    # enable, position, and prioritize the requested outputs.
+                                    await asyncio.sleep(0.35)
+                                    if request_path.read_text() != request:
+                                        return
+
+                                    sockets = list(pathlib.Path("/config/.XDG").glob(
+                                        "sway-ipc.*.sock"
+                                    ))
+                                    if not sockets:
+                                        raise OSError("Sway IPC socket is unavailable")
+                                    sway_socket = max(sockets, key=lambda path: path.stat().st_mtime)
+
+                                    async def run_sway(command, ignore_missing=False):
+                                        process = await asyncio.create_subprocess_exec(
+                                            "swaymsg", "--socket", str(sway_socket), command,
+                                            stdout=asyncio.subprocess.PIPE,
+                                            stderr=asyncio.subprocess.PIPE,
+                                        )
+                                        stdout, stderr = await process.communicate()
+                                        try:
+                                            replies = json.loads(stdout.decode())
+                                        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                                            detail = (stderr or stdout).decode(
+                                                errors="replace"
+                                            ).strip()
+                                            raise OSError(
+                                                detail or f"invalid swaymsg response: {error}"
+                                            )
+                                        failures = [
+                                            reply.get("error", "unknown Sway error")
+                                            for reply in replies if not reply.get("success")
+                                        ]
+                                        if failures:
+                                            if ignore_missing and all(
+                                                error == "No matching node." for error in failures
+                                            ):
+                                                return
+                                            raise OSError("; ".join(failures))
+                                        if process.returncode:
+                                            detail = stderr.decode(errors="replace").strip()
+                                            raise OSError(detail or "swaymsg failed")
+
+                                    active_commands = []
+                                    offset = 0
+                                    for index in range(layout_count):
+                                        criteria = f'[title=".*WL-{index}.*"]'
+                                        if layout_orientation == "horizontal":
+                                            size = layout_width // layout_count + (
+                                                1 if index < layout_width % layout_count else 0
+                                            )
+                                            command = (
+                                                f"{criteria} move workspace current, floating enable, "
+                                                f"resize set width {size} px height {layout_height} px, "
+                                                f"move position {offset} px 0 px"
+                                            )
+                                        else:
+                                            size = layout_height // layout_count + (
+                                                1 if index < layout_height % layout_count else 0
+                                            )
+                                            command = (
+                                                f"{criteria} move workspace current, floating enable, "
+                                                f"resize set width {layout_width} px height {size} px, "
+                                                f"move position 0 px {offset} px"
+                                            )
+                                        active_commands.append(command)
+                                        offset += size
+
+                                    for index in range(layout_count, layout_max_screens):
+                                        await run_sway(
+                                            f'[title=".*WL-{index}.*"] move scratchpad',
+                                            ignore_missing=True,
+                                        )
+
+                                    # KWin may publish one final size hint after an output is
+                                    # enabled. Reapply the exact canvas partition once it has.
+                                    for layout_pass in range(2):
+                                        if request_path.read_text() != request:
+                                            return
+                                        for command in active_commands:
+                                            await run_sway(command)
+                                        if layout_pass == 0:
+                                            await asyncio.sleep(0.5)
+
+                                    await websocket.send(
+                                        f"WEBKDE_LAYOUT_APPLIED,{layout_count},{layout_orientation}"
+                                    )
+                                except asyncio.CancelledError:
+                                    data_logger.debug("Superseded WebKDE layout request")
+                                except (OSError, ValueError) as error:
+                                    data_logger.warning(
+                                        f"Invalid WebKDE layout request: {layout_message}: {error}"
+                                    )
+
+                            self.webkde_layout_task = asyncio.create_task(
+                                apply_webkde_layout()
+                            )
                         except (IndexError, ValueError, OSError) as error:
                             data_logger.warning(f"Invalid WebKDE layout request: {message}: {error}")
 

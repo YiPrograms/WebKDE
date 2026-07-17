@@ -25,8 +25,8 @@ until kscreen-doctor -o 2>/dev/null | grep -q "WL-${last_output}"; do
 done
 
 # Start from a deterministic one-screen desktop. The browser applies its
-# persisted 1/2-screen selection as soon as the stream connects.
-args=(output.WL-0.enable output.WL-0.position.0,0)
+# persisted virtual-screen selection as soon as the stream connects.
+args=(output.WL-0.enable output.WL-0.position.0,0 output.WL-0.priority.1)
 for ((index=1; index<WEBKDE_MAX_SCREENS; index++)); do
   args+=("output.WL-${index}.disable")
 done

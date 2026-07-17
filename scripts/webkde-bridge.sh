@@ -56,31 +56,28 @@ while :; do
   if [[ -r "${bridge_dir}/layout-request" ]]; then
     layout="$(<"${bridge_dir}/layout-request")"
     if [[ "${layout}" != "${last_layout}" ]]; then
-      IFS=, read -r count orientation canvas_width canvas_height <<<"${layout}"
+      IFS=, read -r count orientation canvas_width canvas_height request_id <<<"${layout}"
       if [[ "${count}" =~ ^[1-8]$ && "${orientation}" =~ ^(horizontal|vertical)$ ]]; then
         output_args=()
+        position_args=()
+        offset=0
         for ((index=0; index<WEBKDE_MAX_SCREENS; index++)); do
           if (( index < count )); then
-            output_args+=("output.WL-${index}.enable")
+            output_args+=("output.WL-${index}.enable" "output.WL-${index}.priority.$((index + 1))")
+            if [[ "${orientation}" == horizontal ]]; then
+              position_args+=("output.WL-${index}.position.${offset},0")
+              size=$((canvas_width / count + (index < canvas_width % count ? 1 : 0)))
+            else
+              position_args+=("output.WL-${index}.position.0,${offset}")
+              size=$((canvas_height / count + (index < canvas_height % count ? 1 : 0)))
+            fi
+            offset=$((offset + size))
           else
             output_args+=("output.WL-${index}.disable")
           fi
         done
-        kscreen-doctor "${output_args[@]}" >/dev/null 2>&1 || true
-        sleep 2
-        position_args=()
-        offset=0
-        for ((index=0; index<count; index++)); do
-          if [[ "${orientation}" == horizontal ]]; then
-            position_args+=("output.WL-${index}.position.${offset},0")
-            size=$((canvas_width / count + (index < canvas_width % count ? 1 : 0)))
-          else
-            position_args+=("output.WL-${index}.position.0,${offset}")
-            size=$((canvas_height / count + (index < canvas_height % count ? 1 : 0)))
-          fi
-          offset=$((offset + size))
-        done
-        kscreen-doctor "${position_args[@]}" >/dev/null 2>&1 && last_layout="${layout}"
+        kscreen-doctor "${output_args[@]}" "${position_args[@]}" >/dev/null 2>&1 \
+          && last_layout="${layout}"
       fi
     fi
   fi
