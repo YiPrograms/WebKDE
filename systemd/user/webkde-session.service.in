@@ -9,7 +9,10 @@ ExecStartPre=/opt/webkde/scripts/wait-wayland.sh @RUNTIME@/wayland-0
 ExecStart=/opt/webkde/scripts/start-plasma.sh
 ExecStartPost=/opt/webkde/scripts/initial-display-mode.sh
 ExecStartPost=@SYSTEMCTL@ --user start webkde-inhibit.service
-Restart=on-failure
+# startplasma exits cleanly when its outer Wayland connection disappears.
+# Restart even after that clean exit so a transient container/Labwc restart
+# cannot leave Selkies streaming an empty black compositor.
+Restart=always
 RestartSec=5s
 TimeoutStartSec=5min
 TimeoutStopSec=45s

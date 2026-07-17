@@ -12,6 +12,7 @@ COPY --chmod=0755 container/defaults/startwm_wayland.sh /defaults/startwm_waylan
 COPY --chmod=0644 container/defaults/labwc.xml /defaults/labwc.xml
 COPY --chmod=0755 container/patches/selkies-empty-file-transfers.py /tmp/selkies-empty-file-transfers.py
 COPY --chmod=0755 container/patches/selkies-host-resolution.py /tmp/selkies-host-resolution.py
+COPY --chmod=0755 container/patches/selkies-scroll-scale.py /tmp/selkies-scroll-scale.py
 COPY --chmod=0755 container/entrypoint.sh /webkde-entrypoint.sh
 RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
       *[!0-9:]*|:*|*:) echo "Monitor dimensions must be integers" >&2; exit 1 ;; \
@@ -22,7 +23,9 @@ RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
       /defaults/labwc.xml \
     && /lsiopy/bin/python3 /tmp/selkies-empty-file-transfers.py \
     && /lsiopy/bin/python3 /tmp/selkies-host-resolution.py \
-    && rm /tmp/selkies-empty-file-transfers.py /tmp/selkies-host-resolution.py
+    && /lsiopy/bin/python3 /tmp/selkies-scroll-scale.py \
+    && rm /tmp/selkies-empty-file-transfers.py \
+      /tmp/selkies-host-resolution.py /tmp/selkies-scroll-scale.py
 
 HEALTHCHECK --interval=20s --timeout=5s --start-period=45s --retries=5 \
   CMD curl --insecure --fail --silent --show-error \

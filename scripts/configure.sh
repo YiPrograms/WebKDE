@@ -27,6 +27,7 @@ WEBKDE_HTTPS_PORT=3001
 WEBKDE_USER=webkde
 WEBKDE_PASSWORD=${password}
 WEBKDE_BASIC_AUTH=true
+WEBKDE_SCROLL_SCALE=0.25
 WEBKDE_RUNTIME_DIR=/run/user/${uid}/webkde
 WEBKDE_PULSE_DIR=/run/user/${uid}/pulse
 WEBKDE_DRI_NODE=/dev/dri/renderD128

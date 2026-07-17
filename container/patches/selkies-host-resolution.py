@@ -32,27 +32,82 @@ new_settings = """            target_w = None
             elif server_is_manual:
 """
 
-old_resize = """                        data_logger.info(f"Received resize request for {display_id}: {target_res_str} from {raddr}")
+old_resize = """                    elif message.startswith("r,"):
+                        await self.client_settings_received.wait()<SPACE>
+                        raddr = websocket.remote_address
+<INDENT>
+                        parts = message.split(',')
+                        if len(parts) != 3:
+                            data_logger.warning(f"Malformed resize request from {raddr}: {message}")
+                            continue
+<INDENT>
+                        target_res_str = parts[1]
+                        display_id = parts[2]
+
+                        client_info = self.display_clients.get(display_id)
+                        if not client_info:
+                            data_logger.warning(f"Resize request for unknown display_id '{display_id}' from {raddr}. Ignoring.")
+                            continue
+<INDENT>
+                        current_res_str = f"{client_info.get('width', 0)}x{client_info.get('height', 0)}"
+
+                        if target_res_str == current_res_str:
+                            data_logger.info(f"Received redundant resize request for {display_id} ({target_res_str}). No action taken.")
+                            continue
+                        data_logger.info(f"Received resize request for {display_id}: {target_res_str} from {raddr}")
 
                         await on_resize_handler(target_res_str, self.app, self, display_id)
 """
-new_resize = """                        is_host_control = client_display_id is None
+old_resize = old_resize.replace("<SPACE>", " ").replace("<INDENT>", "                        ")
+new_resize = """                    elif message.startswith("r,"):
+                        is_host_control = client_display_id is None
+                        if not is_host_control:
+                            await self.client_settings_received.wait()
+                        raddr = websocket.remote_address
+
+                        parts = message.split(',')
+                        if len(parts) != 3:
+                            data_logger.warning(f"Malformed resize request from {raddr}: {message}")
+                            continue
+
+                        target_res_str = parts[1]
+                        display_id = parts[2]
                         forced_resolutions = getattr(self, "webkde_forced_resolutions", None)
                         if forced_resolutions is None:
                             forced_resolutions = self.webkde_forced_resolutions = {}
-                        if not is_host_control and display_id in forced_resolutions:
-                            data_logger.info(
-                                f"Ignoring browser resize for host-controlled {display_id}: {target_res_str}"
-                            )
-                            continue
+
                         if is_host_control:
                             forced_resolutions[display_id] = target_res_str
                             data_logger.info(
                                 f"WebKDE host set persistent resolution for {display_id}: {target_res_str}"
                             )
-                        data_logger.info(f"Received resize request for {display_id}: {target_res_str} from {raddr}")
+                        elif display_id in forced_resolutions:
+                            data_logger.info(
+                                f"Ignoring browser resize for host-controlled {display_id}: {target_res_str}"
+                            )
+                            continue
 
-                        await on_resize_handler(target_res_str, self.app, self, display_id)
+                        client_info = self.display_clients.get(display_id)
+                        if not client_info:
+                            if is_host_control:
+                                await websocket.send(f"WEBKDE_RESIZED,{display_id},{target_res_str}")
+                            else:
+                                data_logger.warning(
+                                    f"Resize request for unknown display_id '{display_id}' from {raddr}. Ignoring."
+                                )
+                            continue
+
+                        current_res_str = f"{client_info.get('width', 0)}x{client_info.get('height', 0)}"
+                        if target_res_str == current_res_str:
+                            data_logger.info(
+                                f"Received redundant resize request for {display_id} ({target_res_str}). No action taken."
+                            )
+                        else:
+                            data_logger.info(
+                                f"Received resize request for {display_id}: {target_res_str} from {raddr}"
+                            )
+                            await on_resize_handler(target_res_str, self.app, self, display_id)
+
                         if is_host_control:
                             await websocket.send(f"WEBKDE_RESIZED,{display_id},{target_res_str}")
 """

@@ -16,6 +16,8 @@ height="${WEBKDE_MONITOR_HEIGHT}"
 dual_width=$((width * 2))
 
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export QT_QPA_PLATFORM=wayland
+export XDG_SESSION_TYPE=wayland
 
 require_session() {
   if ! systemctl --user is-active --quiet webkde-session.service; then

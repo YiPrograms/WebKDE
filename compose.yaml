@@ -25,6 +25,7 @@ services:
       CUSTOM_USER: ${WEBKDE_USER:-webkde}
       PASSWORD: ${WEBKDE_PASSWORD:?Run ./scripts/configure.sh before starting WebKDE}
       WEBKDE_BASIC_AUTH: ${WEBKDE_BASIC_AUTH:-true}
+      WEBKDE_SCROLL_SCALE: ${WEBKDE_SCROLL_SCALE:-0.25}
       TITLE: WebKDE
 
       # Keep resolution client-controlled so scripts/display-mode.sh can resize

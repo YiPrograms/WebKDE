@@ -98,8 +98,7 @@ Then open `https://127.0.0.1:3001/` on the client.
 
 ## Display modes
 
-Connect a browser before the first mode change so Selkies has initialized its
-primary display. From the source checkout:
+From the source checkout, select the live mode with:
 
 ```bash
 make single
@@ -117,7 +116,9 @@ The same commands are available after deployment as:
 
 They use Selkies' live `r,<resolution>,primary` WebSocket control and KScreen.
 The streamed canvas and active KWin output change while all compositor and
-desktop processes stay alive.
+desktop processes stay alive. The selection is retained across browser
+reconnects. Set `WEBKDE_DEFAULT_MODE=single` or `dual` for the mode applied
+whenever WebKDE itself starts.
 
 ## Operations
 
@@ -154,6 +155,30 @@ The host Plasma session uses a PipeWire-Pulse null sink named `output`. The
 container connects to the host user's Pulse socket and Selkies captures
 `output.monitor`. Microphone forwarding is disabled by default.
 
+## Mouse, scrolling, and clipboard
+
+The browser pointer reaches KWin through Pixelflux and Labwc as a virtual
+Wayland seat. KDE System Settings therefore reports that no physical mouse is
+connected; this is expected, and its per-device speed controls do not apply.
+
+Wheel deltas are scaled before injection. The default is deliberately slower
+than upstream Selkies:
+
+```dotenv
+WEBKDE_SCROLL_SCALE=0.25
+```
+
+Add or change that value in `/etc/webkde/webkde.env`, then restart WebKDE. A
+smaller value scrolls more slowly; accepted values are clamped between `0.05`
+and `4.0`.
+
+Text clipboard synchronization is enabled in both directions. Use the normal
+copy/paste shortcuts in KDE and in the local browser. Grant the site's
+clipboard permission when the browser asks; clipboard APIs require the HTTPS
+page to be focused and may require one initial user gesture. The Selkies
+sidebar clipboard box is also available when browser clipboard policy blocks
+automatic access.
+
 ## Security
 
 - The service binds to `127.0.0.1` by default; prefer an SSH tunnel.
@@ -181,9 +206,14 @@ container logs shown above. Important sockets are:
 /run/user/<uid>/wayland-0         nested KWin display; Plasma apps connect here
 ```
 
-If a display-mode command cannot resize, connect the browser first. If a future
-KWin release uses names other than `WL-0` and `WL-1`, inspect
-`kscreen-doctor -o` and adjust `scripts/display-mode.sh`.
+If a browser shows a stale black frame after an interrupted upgrade, reload one
+tab and close duplicate WebKDE tabs. The session now automatically remaps KWin
+after an outer-compositor restart; `sudo systemctl restart webkde.service`
+forces a complete clean recovery if necessary.
+
+If a future KWin release uses names other than `WL-0` and `WL-1`, inspect
+`QT_QPA_PLATFORM=wayland WAYLAND_DISPLAY=wayland-0 kscreen-doctor -o` and
+adjust `scripts/display-mode.sh`.
 
 ## Reproducibility and upstream
 
