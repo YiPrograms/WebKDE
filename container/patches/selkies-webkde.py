@@ -155,6 +155,21 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                         except (IndexError, ValueError, OSError) as error:
                             data_logger.warning(f"Invalid WebKDE layout request: {message}: {error}")
 
+                    elif message in ("WEBKDE_RESTART_PLASMA", "WEBKDE_RESTART_KWIN"):
+                        try:
+                            request_dir = pathlib.Path(os.environ.get(
+                                "WEBKDE_BRIDGE_DIR", "/config/.XDG/webkde-bridge"
+                            ))
+                            request_dir.mkdir(parents=True, exist_ok=True)
+                            request = f"{time.monotonic_ns()}\\n"
+                            component = "plasma" if message.endswith("PLASMA") else "kwin"
+                            temporary = request_dir / f"restart-{component}.tmp"
+                            temporary.write_text(request)
+                            temporary.replace(request_dir / f"restart-{component}")
+                            await websocket.send(f"{message}_ACCEPTED")
+                        except OSError as error:
+                            data_logger.warning(f"Could not request a desktop restart: {error}")
+
 '''
 if source.count(needle) != 1:
     raise SystemExit("Pinned Selkies source no longer matches layout insertion point")

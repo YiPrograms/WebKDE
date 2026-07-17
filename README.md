@@ -109,6 +109,13 @@ The installed default reserves eight nested outputs. Set
 `WEBKDE_MAX_SCREENS` to a value from 1 through 8 before installation if a
 smaller maximum is preferred.
 
+The same Screen Settings section has **Restart Plasma** and **Restart KWin**
+recovery buttons. Both ask for confirmation. Restarting Plasma closes the
+session's applications. Restarting KWin interrupts the Wayland display-server
+connection, so Wayland applications can also close; on some Plasma versions it
+may result in a full session restart. Neither action restarts the Selkies
+container.
+
 `make status` (or `/opt/webkde/scripts/display-mode.sh status`) remains
 available for diagnostics. The old `make single` and `make dual` controls were
 removed because they forced a fixed stream resolution.

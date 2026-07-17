@@ -34,6 +34,38 @@ last_to_kde=''
 last_from_kde=''
 last_layout=''
 while :; do
+  if [[ -r "${bridge_dir}/restart-kwin" ]]; then
+    restart_request="$(<"${bridge_dir}/restart-kwin")"
+    if [[ "${restart_request}" =~ ^[0-9]+$ ]]; then
+      unlink "${bridge_dir}/restart-kwin"
+      previous_kwin_pid="$(systemctl --user show plasma-kwin_wayland.service \
+        --property=MainPID --value 2>/dev/null || true)"
+      if systemctl --user --no-block restart plasma-kwin_wayland.service; then
+        for ((attempt=0; attempt<60; attempt++)); do
+          current_kwin_pid="$(systemctl --user show plasma-kwin_wayland.service \
+            --property=MainPID --value 2>/dev/null || true)"
+          if [[ "${current_kwin_pid}" =~ ^[1-9][0-9]*$ \
+              && "${current_kwin_pid}" != "${previous_kwin_pid}" ]]; then
+            break
+          fi
+          sleep 0.25
+        done
+        # Reapply the persisted KScreen layout after the new compositor is ready.
+        last_layout=''
+        continue
+      fi
+    fi
+  fi
+
+  if [[ -r "${bridge_dir}/restart-plasma" ]]; then
+    restart_request="$(<"${bridge_dir}/restart-plasma")"
+    if [[ "${restart_request}" =~ ^[0-9]+$ ]]; then
+      unlink "${bridge_dir}/restart-plasma"
+      systemctl --user --no-block restart webkde-session.service
+      exit 0
+    fi
+  fi
+
   if [[ -r "${bridge_dir}/to-kde" ]]; then
     to_kde="$(<"${bridge_dir}/to-kde")"
     if [[ "${to_kde}" != "${last_to_kde}" ]]; then
