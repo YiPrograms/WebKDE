@@ -2,8 +2,13 @@
 set -euo pipefail
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck disable=SC1091
-source "${repo_dir}/.env"
+env_file="${WEBKDE_ENV_FILE:-/etc/webkde/webkde.env}"
+if [[ ! -r "${env_file}" ]]; then
+  env_file="${repo_dir}/.env"
+fi
+[[ -r "${env_file}" ]] || { echo "WebKDE configuration not found." >&2; exit 1; }
+# shellcheck disable=SC1090
+source "${env_file}"
 
 mode="${1:-status}"
 width="${WEBKDE_MONITOR_WIDTH}"
@@ -35,7 +40,8 @@ case "${mode}" in
       output.WL-1.enable output.WL-1.position."${width}",0
     ;;
   status)
-    echo "Container: $(systemctl --user is-active webkde-container.service 2>/dev/null || true)"
+    echo "System:    $(systemctl is-active webkde.service 2>/dev/null || true)"
+    echo "Container: $(docker inspect --format '{{.State.Status}}' webkde-selkies 2>/dev/null || echo unavailable)"
     echo "Plasma:    $(systemctl --user is-active webkde-session.service 2>/dev/null || true)"
     echo
     kscreen-doctor -o 2>/dev/null || echo "KScreen is not available yet."

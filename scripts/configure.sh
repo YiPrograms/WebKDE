@@ -11,13 +11,14 @@ fi
 
 uid="$(id -u)"
 gid="$(id -g)"
+username="$(id -un)"
 timezone="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
 timezone="${timezone:-Etc/UTC}"
 password="$(openssl rand -base64 36 | tr -d '\n' | tr '/+' '_-')"
 
 umask 077
-mkdir -p "${repo_dir}/data/config"
 cat >"${env_file}" <<EOF
+WEBKDE_HOST_USER=${username}
 WEBKDE_PUID=${uid}
 WEBKDE_PGID=${gid}
 WEBKDE_TZ=${timezone}
@@ -28,6 +29,7 @@ WEBKDE_PASSWORD=${password}
 WEBKDE_RUNTIME_DIR=/run/user/${uid}/webkde
 WEBKDE_PULSE_DIR=/run/user/${uid}/pulse
 WEBKDE_DRI_NODE=/dev/dri/renderD128
+WEBKDE_CONFIG_DIR=/var/lib/webkde/config
 WEBKDE_MONITOR_WIDTH=1920
 WEBKDE_MONITOR_HEIGHT=1080
 WEBKDE_DEFAULT_MODE=single

@@ -6,6 +6,8 @@ services:
       context: .
       args:
         SELKIES_BASE_IMAGE: ${SELKIES_BASE_IMAGE:-ghcr.io/linuxserver/baseimage-selkies:debiantrixie@sha256:ac7fd6d182238b4a99e66554c5e75be48a714e2a0c9da81bd18e171ff9ba3dd5}
+        MONITOR_WIDTH: ${WEBKDE_MONITOR_WIDTH:-1920}
+        MONITOR_HEIGHT: ${WEBKDE_MONITOR_HEIGHT:-1080}
     image: webkde-selkies:local
     container_name: webkde-selkies
     environment:
@@ -46,7 +48,7 @@ services:
     ports:
       - "${WEBKDE_BIND:-127.0.0.1}:${WEBKDE_HTTPS_PORT:-3001}:3001"
     volumes:
-      - ./data/config:/config
+      - ${WEBKDE_CONFIG_DIR:-./data/config}:/config
       - ${WEBKDE_RUNTIME_DIR:-/run/user/1000/webkde}:/config/.XDG
       - ${WEBKDE_PULSE_DIR:-/run/user/1000/pulse}:/run/host-pulse
     shm_size: 1gb

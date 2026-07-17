@@ -1,28 +1,28 @@
-.PHONY: configure host-setup install uninstall start stop restart logs status single dual doctor validate
+.PHONY: configure install uninstall start stop restart logs user-logs status single dual doctor validate
 
 configure:
 	./scripts/configure.sh
 
-host-setup:
-	@echo "Run interactively: sudo ./scripts/host-setup.sh $${USER}"
-
-install: configure
-	./scripts/install-user.sh
+install:
+	sudo ./scripts/install-system.sh "$${USER}"
 
 uninstall:
-	./scripts/uninstall-user.sh
+	sudo ./scripts/uninstall-system.sh
 
 start:
-	systemctl --user start webkde-session.service
+	sudo systemctl start webkde.service
 
 stop:
-	systemctl --user stop webkde-session.service webkde-container.service
+	sudo systemctl stop webkde.service
 
 restart:
-	systemctl --user restart webkde-container.service webkde-session.service
+	sudo systemctl restart webkde.service
 
 logs:
-	journalctl --user -u webkde-container.service -u webkde-session.service -f
+	journalctl -u webkde.service -f
+
+user-logs:
+	journalctl --user -u webkde-session.service -u plasma-kwin_wayland.service -f
 
 status:
 	./scripts/display-mode.sh status
@@ -40,5 +40,8 @@ validate:
 	bash -n scripts/*.sh container/defaults/startwm_wayland.sh
 	xmllint --noout container/defaults/labwc.xml
 	docker compose --env-file .env.example config --quiet
+	@! rg -n '@(UID|RUNTIME|WIDTH|HEIGHT|KWIN_WRAPPER)@' \
+		Dockerfile compose.yaml container README.md docs || \
+		(echo "Unexpected unrendered system placeholder" >&2; exit 1)
 	git diff --check
 	git diff --cached --check

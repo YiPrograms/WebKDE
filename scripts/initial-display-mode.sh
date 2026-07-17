@@ -2,8 +2,12 @@
 set -euo pipefail
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck disable=SC1091
-source "${repo_dir}/.env"
+env_file="${WEBKDE_ENV_FILE:-/etc/webkde/webkde.env}"
+if [[ ! -r "${env_file}" ]]; then
+  env_file="${repo_dir}/.env"
+fi
+# shellcheck disable=SC1090
+source "${env_file}"
 
 case "${WEBKDE_DEFAULT_MODE:-single}" in
   dual)

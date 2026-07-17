@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!container/
+!container/defaults/
+!container/defaults/labwc.xml
+!container/defaults/startwm_wayland.sh

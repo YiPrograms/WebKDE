@@ -34,14 +34,14 @@
       <skipWindowSwitcher>yes</skipWindowSwitcher>
       <fixedPosition>yes</fixedPosition>
       <action name="MoveTo" x="0" y="0" />
-      <action name="ResizeTo" width="1920" height="1080" />
+      <action name="ResizeTo" width="@MONITOR_WIDTH@" height="@MONITOR_HEIGHT@" />
     </windowRule>
     <windowRule title="*WL-1*" serverDecoration="no">
       <skipTaskbar>yes</skipTaskbar>
       <skipWindowSwitcher>yes</skipWindowSwitcher>
       <fixedPosition>yes</fixedPosition>
-      <action name="MoveTo" x="1920" y="0" />
-      <action name="ResizeTo" width="1920" height="1080" />
+      <action name="MoveTo" x="@MONITOR_WIDTH@" y="0" />
+      <action name="ResizeTo" width="@MONITOR_WIDTH@" height="@MONITOR_HEIGHT@" />
     </windowRule>
   </windowRules>
 </labwc_config>

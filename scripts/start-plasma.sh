@@ -2,8 +2,12 @@
 set -euo pipefail
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck disable=SC1091
-source "${repo_dir}/.env"
+env_file="${WEBKDE_ENV_FILE:-/etc/webkde/webkde.env}"
+if [[ ! -r "${env_file}" ]]; then
+  env_file="${repo_dir}/.env"
+fi
+# shellcheck disable=SC1090
+source "${env_file}"
 
 outer_socket="${WEBKDE_RUNTIME_DIR}/wayland-0"
 "${repo_dir}/scripts/wait-wayland.sh" "${outer_socket}"
@@ -24,4 +28,8 @@ if command -v pactl >/dev/null 2>&1 && ! pactl list short sinks | awk '{print $2
     sink_properties=device.description=WebKDE_Output >/dev/null
 fi
 
-exec /usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland
+start_plasma="$(command -v startplasma-wayland)"
+if [[ -n "${WEBKDE_PLASMA_DBUS_RUNNER:-}" ]]; then
+  exec "${WEBKDE_PLASMA_DBUS_RUNNER}" "${start_plasma}"
+fi
+exec "${start_plasma}"
