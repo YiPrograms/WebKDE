@@ -58,8 +58,13 @@ if systemctl list-unit-files webkde.service --no-legend 2>/dev/null | grep -q we
 fi
 
 install -d -m 0755 /opt/webkde /etc/webkde /etc/systemd/system
-rm -rf /opt/webkde/container /opt/webkde/scripts /opt/webkde/systemd
-cp -a "${repo_dir}/container" "${repo_dir}/scripts" "${repo_dir}/systemd" /opt/webkde/
+rm -rf /opt/webkde/container /opt/webkde/docs /opt/webkde/scripts /opt/webkde/systemd
+cp -a \
+  "${repo_dir}/container" \
+  "${repo_dir}/docs" \
+  "${repo_dir}/scripts" \
+  "${repo_dir}/systemd" \
+  /opt/webkde/
 for file in Dockerfile compose.yaml Makefile README.md LICENSE .dockerignore .env.example; do
   install -m 0644 "${repo_dir}/${file}" "/opt/webkde/${file}"
 done
