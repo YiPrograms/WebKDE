@@ -4,7 +4,8 @@ set -euo pipefail
 env_file="${WEBKDE_ENV_FILE:-/etc/webkde/webkde.env}"
 
 /opt/webkde/scripts/system-userctl.sh stop \
-  webkde-session.service plasma-workspace.target graphical-session.target || true
+  webkde-inhibit.service webkde-session.service \
+  plasma-workspace.target graphical-session.target || true
 
 deadline=$((SECONDS + 45))
 while /opt/webkde/scripts/system-userctl.sh is-active --quiet plasma-kwin_wayland.service; do

@@ -1,0 +1,9 @@
+[Unit]
+Description=Keep the WebKDE host and Plasma session awake
+PartOf=webkde-session.service
+
+[Service]
+Type=simple
+ExecStart=@KDE_INHIBIT@ --power --screenSaver @SYSTEMD_INHIBIT@ --what=idle:sleep:handle-lid-switch:handle-suspend-key:handle-hibernate-key --who=WebKDE --why=WebKDE-session-active --mode=block @SLEEP@ infinity
+Restart=on-failure
+RestartSec=2s

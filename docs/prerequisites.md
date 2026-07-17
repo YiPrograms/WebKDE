@@ -14,7 +14,7 @@ The host needs:
 - Docker Engine using the system daemon, plus Docker Compose v2;
 - Docker API access for the desktop user (normally membership in `docker`);
 - Plasma 6, `kwin_wayland_wrapper`, `startplasma-wayland`, KScreen, and
-  XWayland;
+  XWayland, including the `kde-inhibit` utility;
 - PipeWire with the PulseAudio-compatible server and `pactl`;
 - a DRI render node accessible to the desktop user, normally
   `/dev/dri/renderD128` through the `render` or `video` group;

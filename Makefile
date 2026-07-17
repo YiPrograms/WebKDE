@@ -22,7 +22,7 @@ logs:
 	journalctl -u webkde.service -f
 
 user-logs:
-	journalctl --user -u webkde-session.service -u plasma-kwin_wayland.service -f
+	journalctl --user -u webkde-session.service -u webkde-inhibit.service -u plasma-kwin_wayland.service -f
 
 status:
 	./scripts/display-mode.sh status
@@ -37,7 +37,7 @@ doctor:
 	./scripts/doctor.sh
 
 validate:
-	bash -n scripts/*.sh container/defaults/startwm_wayland.sh
+	bash -n scripts/*.sh container/*.sh container/defaults/*.sh
 	xmllint --noout container/defaults/labwc.xml
 	docker compose --env-file .env.example config --quiet
 	@! rg -n '@(UID|RUNTIME|WIDTH|HEIGHT|KWIN_WRAPPER)@' \

@@ -25,6 +25,16 @@ if [[ -z "${kwin_wrapper}" ]]; then
   echo "kwin_wayland_wrapper is missing. Complete the host prerequisites first." >&2
   exit 1
 fi
+kde_inhibit="$(command -v kde-inhibit || true)"
+systemd_inhibit="$(command -v systemd-inhibit || true)"
+systemctl_command="$(command -v systemctl || true)"
+sleep_command="$(command -v sleep || true)"
+for value in "${kde_inhibit}" "${systemd_inhibit}" "${systemctl_command}" "${sleep_command}"; do
+  if [[ -z "${value}" ]]; then
+    echo "The KDE and systemd inhibitor commands are required. Complete the host prerequisites first." >&2
+    exit 1
+  fi
+done
 
 plasma_runner=""
 for candidate in \
@@ -120,8 +130,15 @@ install -d -m 0755 -o "${target_uid}" -g "${target_gid}" \
   "${user_unit_dir}/plasma-kwin_wayland.service.d"
 sed \
   -e "s|@RUNTIME@|${WEBKDE_RUNTIME_DIR}|g" \
+  -e "s|@SYSTEMCTL@|${systemctl_command}|g" \
   /opt/webkde/systemd/user/webkde-session.service.in \
   >"${user_unit_dir}/webkde-session.service"
+sed \
+  -e "s|@KDE_INHIBIT@|${kde_inhibit}|g" \
+  -e "s|@SYSTEMD_INHIBIT@|${systemd_inhibit}|g" \
+  -e "s|@SLEEP@|${sleep_command}|g" \
+  /opt/webkde/systemd/user/webkde-inhibit.service.in \
+  >"${user_unit_dir}/webkde-inhibit.service"
 sed \
   -e "s|@RUNTIME@|${WEBKDE_RUNTIME_DIR}|g" \
   -e "s|@WIDTH@|${WEBKDE_MONITOR_WIDTH}|g" \
@@ -132,9 +149,11 @@ sed \
 chown "${target_uid}:${target_gid}" \
   "${user_unit_dir}" \
   "${user_unit_dir}/plasma-kwin_wayland.service.d" \
+  "${user_unit_dir}/webkde-inhibit.service" \
   "${user_unit_dir}/webkde-session.service" \
   "${user_unit_dir}/plasma-kwin_wayland.service.d/webkde.conf"
 chmod 0644 \
+  "${user_unit_dir}/webkde-inhibit.service" \
   "${user_unit_dir}/webkde-session.service" \
   "${user_unit_dir}/plasma-kwin_wayland.service.d/webkde.conf"
 

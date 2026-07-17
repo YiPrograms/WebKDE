@@ -22,6 +22,7 @@ if [[ -r "${env_file}" ]]; then
   systemctl disable --now webkde.service 2>/dev/null || true
   /opt/webkde/scripts/system-userctl.sh stop webkde-session.service 2>/dev/null || true
   rm -f \
+    "${target_home}/.config/systemd/user/webkde-inhibit.service" \
     "${target_home}/.config/systemd/user/webkde-session.service" \
     "${target_home}/.config/systemd/user/plasma-kwin_wayland.service.d/webkde.conf"
   /opt/webkde/scripts/system-userctl.sh daemon-reload 2>/dev/null || true

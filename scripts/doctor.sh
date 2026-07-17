@@ -17,7 +17,7 @@ ok() { printf 'OK   %s\n' "$*"; }
 warn() { printf 'WARN %s\n' "$*"; warnings=$((warnings + 1)); }
 fail() { printf 'FAIL %s\n' "$*"; failures=$((failures + 1)); }
 
-for command in docker kwin_wayland_wrapper startplasma-wayland kscreen-doctor openssl pactl loginctl systemctl runuser; do
+for command in docker kwin_wayland_wrapper startplasma-wayland kscreen-doctor openssl pactl loginctl systemctl systemd-inhibit kde-inhibit runuser; do
   if command -v "${command}" >/dev/null 2>&1; then
     ok "command: ${command}"
   else

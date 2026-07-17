@@ -36,6 +36,10 @@ directly as root from a system service would bypass Plasma's supported session
 lifecycle. The system-wide `webkde.service` owns and starts this user session;
 the user unit is not independently enabled.
 
+While WebKDE is active, KDE and logind inhibitors prevent automatic locking,
+display blanking, suspend/hibernate, and lid-close sleep. The inhibitors are
+released when WebKDE stops, restoring the host's normal power behavior.
+
 ## Prerequisites
 
 WebKDE is distribution-neutral and does not install packages or alter host
@@ -78,6 +82,11 @@ docker logs -f webkde-selkies
 
 Open `https://127.0.0.1:3001/` by default. The generated certificate is
 self-signed. The username and password are in `/etc/webkde/webkde.env`.
+
+Basic authentication is enabled by default. Set `WEBKDE_BASIC_AUTH=false`
+only when access is protected by a trusted VPN, firewall, or authenticating
+reverse proxy. Never combine unauthenticated access with unrestricted Internet
+exposure.
 
 For a remote machine, retain the loopback bind and use a tunnel:
 
@@ -148,6 +157,8 @@ container connects to the host user's Pulse socket and Selkies captures
 ## Security
 
 - The service binds to `127.0.0.1` by default; prefer an SSH tunnel.
+- Basic authentication is enabled by default. Disabling it delegates all
+  access control to the surrounding network or reverse proxy.
 - Use a hardened reverse proxy and stronger authentication before Internet
   exposure.
 - A connected controller operates a real host-user desktop and has that user's
