@@ -10,8 +10,9 @@ install -d -m 0750 -o "${WEBKDE_PUID}" -g "${WEBKDE_PGID}" "${WEBKDE_CONFIG_DIR}
 
 # A compositor does not necessarily unlink its Wayland socket after a crash or
 # power loss. Remove only WebKDE's private sockets before bringing up their new
-# owners, otherwise Labwc or KWin can mistake a stale pathname for readiness.
-for socket_name in wayland-0 wayland-1; do
+# owners, otherwise Sway or KWin can mistake a stale pathname for readiness.
+for socket_index in {0..9}; do
+  socket_name="wayland-${socket_index}"
   rm -f \
     "${WEBKDE_RUNTIME_DIR}/${socket_name}" \
     "${WEBKDE_RUNTIME_DIR}/${socket_name}.lock"

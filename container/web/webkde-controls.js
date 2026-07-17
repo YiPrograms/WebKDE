@@ -1,43 +1,46 @@
 (() => {
   const storageKey = "webkde.virtualScreens";
-  const panel = document.createElement("label");
-  panel.id = "webkde-layout-control";
-  panel.innerHTML = '<span>Virtual screens</span><select aria-label="Virtual screens"><option value="1">1</option><option value="2">2</option></select>';
-  Object.assign(panel.style, {
-    position: "fixed", top: "10px", right: "52px", zIndex: "2147483647",
-    display: "flex", gap: "8px", alignItems: "center", padding: "7px 9px",
-    color: "white", background: "rgba(25,25,28,.88)", border: "1px solid #666",
-    borderRadius: "6px", font: "13px system-ui, sans-serif", boxShadow: "0 2px 8px #0008"
-  });
-  const select = panel.querySelector("select");
-  select.value = localStorage.getItem(storageKey) === "2" ? "2" : "1";
+  const maxScreens = Number(document.currentScript?.dataset.maxScreens || 8);
+  let dataSocket;
+  const nativeSend = WebSocket.prototype.send;
+  WebSocket.prototype.send = function(data) {
+    if (typeof data === "string" && data.startsWith("SETTINGS,")) dataSocket = this;
+    return nativeSend.call(this, data);
+  };
 
   let timer;
-  let lastMessage = "";
   function apply(force = false) {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      const count = Number(select.value);
+      const count = Number(localStorage.getItem(storageKey) || 1);
       const orientation = innerWidth >= innerHeight ? "horizontal" : "vertical";
       const message = `WEBKDE_LAYOUT,${count},${orientation},${innerWidth},${innerHeight}`;
-      if (!force && message === lastMessage) return;
-      lastMessage = message;
-      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-      const socket = new WebSocket(`${protocol}//${location.host}/websocket`);
-      const timeout = setTimeout(() => socket.close(), 5000);
-      socket.addEventListener("open", () => socket.send(message));
-      socket.addEventListener("message", event => {
-        if (String(event.data).startsWith("WEBKDE_LAYOUT_APPLIED,")) socket.close();
-      });
-      socket.addEventListener("close", () => clearTimeout(timeout));
+      if (dataSocket?.readyState === WebSocket.OPEN) nativeSend.call(dataSocket, message);
+      else setTimeout(() => apply(true), 500);
     }, force ? 0 : 350);
   }
 
-  select.addEventListener("change", () => {
-    localStorage.setItem(storageKey, select.value);
-    apply(true);
-  });
+  function mountControl() {
+    const section = document.querySelector("#screen-settings-content");
+    if (!section || document.querySelector("#webkdeVirtualScreens")) return;
+    const item = document.createElement("div");
+    item.className = "dev-setting-item";
+    item.innerHTML = '<label for="webkdeVirtualScreens">Virtual screens</label><select id="webkdeVirtualScreens"></select>';
+    const select = item.querySelector("select");
+    for (let count = 1; count <= maxScreens; count++) {
+      const option = document.createElement("option");
+      option.value = option.textContent = String(count);
+      select.appendChild(option);
+    }
+    select.value = localStorage.getItem(storageKey) || "1";
+    select.addEventListener("change", () => {
+      localStorage.setItem(storageKey, select.value);
+      apply(true);
+    });
+    section.prepend(item);
+  }
+
+  new MutationObserver(mountControl).observe(document.documentElement, {childList: true, subtree: true});
   addEventListener("resize", () => apply(false));
   addEventListener("load", () => setTimeout(() => apply(true), 1500));
-  document.body.appendChild(panel);
 })();

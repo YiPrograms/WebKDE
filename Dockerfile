@@ -6,10 +6,10 @@ ARG MONITOR_WIDTH=1920
 ARG MONITOR_HEIGHT=1080
 
 LABEL org.opencontainers.image.title="WebKDE Selkies bridge" \
-      org.opencontainers.image.description="Selkies/Pixelflux and Labwc container for a host-native nested KDE Plasma session"
+      org.opencontainers.image.description="Selkies/Pixelflux and Sway container for a host-native nested KDE Plasma session"
 
 COPY --chmod=0755 container/defaults/startwm_wayland.sh /defaults/startwm_wayland.sh
-COPY --chmod=0644 container/defaults/labwc.xml /defaults/labwc.xml
+COPY --chmod=0644 container/defaults/sway.conf /defaults/sway.conf
 COPY --chmod=0755 container/patches/selkies-empty-file-transfers.py /tmp/selkies-empty-file-transfers.py
 COPY --chmod=0755 container/patches/selkies-webkde.py /tmp/selkies-webkde.py
 COPY --chmod=0755 container/patches/selkies-web-ui.py /tmp/selkies-web-ui.py
@@ -19,10 +19,9 @@ COPY --chmod=0755 container/entrypoint.sh /webkde-entrypoint.sh
 RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
       *[!0-9:]*|:*|*:) echo "Monitor dimensions must be integers" >&2; exit 1 ;; \
     esac \
-    && sed -i \
-      -e "s/@MONITOR_WIDTH@/${MONITOR_WIDTH}/g" \
-      -e "s/@MONITOR_HEIGHT@/${MONITOR_HEIGHT}/g" \
-      /defaults/labwc.xml \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends sway \
+    && rm -rf /var/lib/apt/lists/* \
     && /lsiopy/bin/python3 /tmp/selkies-empty-file-transfers.py \
     && /lsiopy/bin/python3 /tmp/selkies-webkde.py \
     && /lsiopy/bin/python3 /tmp/selkies-web-ui.py \

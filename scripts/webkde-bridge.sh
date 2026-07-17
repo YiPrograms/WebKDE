@@ -4,6 +4,7 @@ set -u
 env_file="${WEBKDE_ENV_FILE:-/etc/webkde/webkde.env}"
 # shellcheck disable=SC1090
 source "${env_file}"
+WEBKDE_MAX_SCREENS="${WEBKDE_MAX_SCREENS:-8}"
 
 bridge_dir="${WEBKDE_RUNTIME_DIR}/webkde-bridge"
 install -d -m 0700 "${bridge_dir}"
@@ -55,33 +56,32 @@ while :; do
   if [[ -r "${bridge_dir}/layout-request" ]]; then
     layout="$(<"${bridge_dir}/layout-request")"
     if [[ "${layout}" != "${last_layout}" ]]; then
-      case "${layout}" in
-        1,*)
-          kscreen-doctor output.WL-0.enable output.WL-0.position.0,0 \
-            output.WL-1.disable >/dev/null 2>&1 && last_layout="${layout}"
-          ;;
-        2,horizontal,*|2,vertical,*)
-          # Enable the second nested output first. Labwc tiles both KWin
-          # windows moments later; the follow-up keeps their origins adjacent.
-          kscreen-doctor output.WL-0.enable output.WL-0.position.0,0 \
-            output.WL-1.enable >/dev/null 2>&1 || true
-          sleep 1
-          geometry="$(kscreen-doctor -o 2>/dev/null | awk '
-            /Output:.*WL-0/{found=1; next}
-            found && /Geometry:/{print; exit}')"
-          size="$(sed -n 's/.*Geometry: [^ ]* \([0-9][0-9]*\)x\([0-9][0-9]*\).*/\1 \2/p' <<<"${geometry}")"
-          read -r first_width first_height <<<"${size:-1920 1080}"
-          if [[ "${layout}" == 2,horizontal,* ]]; then
-            position="${first_width},0"
+      IFS=, read -r count orientation canvas_width canvas_height <<<"${layout}"
+      if [[ "${count}" =~ ^[1-8]$ && "${orientation}" =~ ^(horizontal|vertical)$ ]]; then
+        output_args=()
+        for ((index=0; index<WEBKDE_MAX_SCREENS; index++)); do
+          if (( index < count )); then
+            output_args+=("output.WL-${index}.enable")
           else
-            position="0,${first_height}"
+            output_args+=("output.WL-${index}.disable")
           fi
-          if kscreen-doctor output.WL-0.position.0,0 \
-              output.WL-1.position."${position}" >/dev/null 2>&1; then
-            last_layout="${layout}"
+        done
+        kscreen-doctor "${output_args[@]}" >/dev/null 2>&1 || true
+        sleep 2
+        position_args=()
+        offset=0
+        for ((index=0; index<count; index++)); do
+          if [[ "${orientation}" == horizontal ]]; then
+            position_args+=("output.WL-${index}.position.${offset},0")
+            size=$((canvas_width / count + (index < canvas_width % count ? 1 : 0)))
+          else
+            position_args+=("output.WL-${index}.position.0,${offset}")
+            size=$((canvas_height / count + (index < canvas_height % count ? 1 : 0)))
           fi
-          ;;
-      esac
+          offset=$((offset + size))
+        done
+        kscreen-doctor "${position_args[@]}" >/dev/null 2>&1 && last_layout="${layout}"
+      fi
     fi
   fi
   sleep 0.25

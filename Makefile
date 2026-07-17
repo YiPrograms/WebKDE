@@ -32,9 +32,8 @@ doctor:
 
 validate:
 	bash -n scripts/*.sh container/*.sh container/defaults/*.sh
-	xmllint --noout container/defaults/labwc.xml
 	docker compose --env-file .env.example config --quiet
-	@! rg -n '@(UID|RUNTIME|WIDTH|HEIGHT|KWIN_WRAPPER|SYSTEMCTL)@' \
+	@! rg -n '@(UID|RUNTIME|WIDTH|HEIGHT|MAX_SCREENS|KWIN_WRAPPER|SYSTEMCTL)@' \
 		Dockerfile compose.yaml container README.md docs || \
 		(echo "Unexpected unrendered system placeholder" >&2; exit 1)
 	git diff --check

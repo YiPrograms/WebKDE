@@ -111,6 +111,7 @@ set_config WEBKDE_RUNTIME_DIR "/run/user/${target_uid}/webkde"
 set_config WEBKDE_PULSE_DIR "/run/user/${target_uid}/pulse"
 set_config WEBKDE_CONFIG_DIR "/var/lib/webkde/config"
 set_config WEBKDE_QDBUS "${qdbus_command}"
+set_config WEBKDE_MAX_SCREENS "${WEBKDE_MAX_SCREENS:-8}"
 if [[ -n "${plasma_runner}" ]]; then
   set_config WEBKDE_PLASMA_DBUS_RUNNER "${plasma_runner}"
 fi
@@ -120,6 +121,7 @@ source "${installed_env}"
 for dimension in "${WEBKDE_MONITOR_WIDTH}" "${WEBKDE_MONITOR_HEIGHT}"; do
   [[ "${dimension}" =~ ^[0-9]+$ ]] || { echo "Monitor dimensions must be positive integers." >&2; exit 1; }
 done
+[[ "${WEBKDE_MAX_SCREENS}" =~ ^[1-8]$ ]] || { echo "WEBKDE_MAX_SCREENS must be between 1 and 8." >&2; exit 1; }
 [[ -n "${WEBKDE_PASSWORD}" && "${WEBKDE_PASSWORD}" != replace-with-a-long-random-password ]] || {
   echo "Set a real WEBKDE_PASSWORD in .env before installing." >&2
   exit 1
@@ -152,6 +154,7 @@ sed \
   -e "s|@RUNTIME@|${WEBKDE_RUNTIME_DIR}|g" \
   -e "s|@WIDTH@|${WEBKDE_MONITOR_WIDTH}|g" \
   -e "s|@HEIGHT@|${WEBKDE_MONITOR_HEIGHT}|g" \
+  -e "s|@MAX_SCREENS@|${WEBKDE_MAX_SCREENS}|g" \
   -e "s|@KWIN_WRAPPER@|${kwin_wrapper}|g" \
   /opt/webkde/systemd/user/plasma-kwin-wayland-webkde.conf.in \
   >"${user_unit_dir}/plasma-kwin_wayland.service.d/webkde.conf"

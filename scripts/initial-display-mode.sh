@@ -8,15 +8,17 @@ if [[ ! -r "${env_file}" ]]; then
 fi
 # shellcheck disable=SC1090
 source "${env_file}"
+WEBKDE_MAX_SCREENS="${WEBKDE_MAX_SCREENS:-8}"
 
 export WAYLAND_DISPLAY=wayland-0
 export QT_QPA_PLATFORM=wayland
 export XDG_SESSION_TYPE=wayland
 "${repo_dir}/scripts/wait-wayland.sh" "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/wayland-0"
 deadline=$((SECONDS + 120))
-until kscreen-doctor -o 2>/dev/null | grep -q 'WL-1'; do
+last_output=$((WEBKDE_MAX_SCREENS - 1))
+until kscreen-doctor -o 2>/dev/null | grep -q "WL-${last_output}"; do
   if (( SECONDS >= deadline )); then
-    echo "KScreen did not report WL-1 within 120 seconds." >&2
+    echo "KScreen did not report WL-${last_output} within 120 seconds." >&2
     exit 1
   fi
   sleep 1
@@ -24,4 +26,8 @@ done
 
 # Start from a deterministic one-screen desktop. The browser applies its
 # persisted 1/2-screen selection as soon as the stream connects.
-kscreen-doctor output.WL-0.enable output.WL-0.position.0,0 output.WL-1.disable
+args=(output.WL-0.enable output.WL-0.position.0,0)
+for ((index=1; index<WEBKDE_MAX_SCREENS; index++)); do
+  args+=("output.WL-${index}.disable")
+done
+kscreen-doctor "${args[@]}"

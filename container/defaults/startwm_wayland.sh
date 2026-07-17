@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pixelflux owns wayland-1. Labwc connects to it and creates wayland-0 in the
+# Pixelflux owns wayland-1. Sway connects to it and creates wayland-2 in the
 # same shared runtime directory for host-native nested KWin.
 export XCURSOR_THEME=breeze_cursors
 export XCURSOR_SIZE=24
 export XKB_DEFAULT_LAYOUT="${XKB_DEFAULT_LAYOUT:-us}"
 export XKB_DEFAULT_RULES="${XKB_DEFAULT_RULES:-evdev}"
 export WAYLAND_DISPLAY=wayland-1
+rm -f \
+  "${XDG_RUNTIME_DIR}/wayland-2" \
+  "${XDG_RUNTIME_DIR}/wayland-2.lock" \
+  "${XDG_RUNTIME_DIR}"/sway-ipc.*.sock
 
-# The upstream persistent default launches a container terminal. WebKDE only
-# displays the two nested host KWin surfaces, so keep Labwc autostart empty.
-install -d -m 0755 "${HOME}/.config/labwc"
-install -m 0644 /defaults/labwc.xml "${HOME}/.config/labwc/rc.xml"
-: >"${HOME}/.config/labwc/autostart"
-
-exec labwc
+export WLR_BACKENDS=wayland
+export WLR_RENDERER=gles2
+exec sway --unsupported-gpu --config /defaults/sway.conf

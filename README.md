@@ -3,20 +3,20 @@
 WebKDE streams a host-native KDE Plasma Wayland session through a small
 Selkies container. KDE, KWin, applications, files, package management, D-Bus,
 and PipeWire remain on the host. The container owns only Pixelflux/Selkies,
-Labwc, encoding, and the HTTPS endpoint.
+Sway, encoding, and the HTTPS endpoint.
 
 ```text
 Browser (HTTPS/WebSocket)
           |
 container: Selkies + Pixelflux (wayland-1)
           |
-container: Labwc (wayland-0, shared with the host)
+container: Sway (wayland-2, shared with the host)
           |
 host: nested KWin (WL-0 + WL-1) -> Plasma -> host applications
 ```
 
 The browser controls the streamed canvas size. A page control partitions that
-live canvas into one or two KWin outputs without restarting Pixelflux, Labwc,
+live canvas into one or more KWin outputs without restarting Pixelflux, Sway,
 KWin, Plasma, or desktop applications.
 
 ## Installation model
@@ -97,12 +97,17 @@ Then open `https://127.0.0.1:3001/` on the client.
 
 ## Virtual screens
 
-Use the **Virtual screens** selector at the top-right of the WebKDE page. The
-choice is stored by that browser. With two screens, a wide browser is split
-left/right and a tall browser is split top/bottom. Changing the browser size
+Open Selkies' **Screen Settings** section and use the **Virtual screens**
+selector. The choice is stored by that browser. Counts from 1 through 8 are
+available by default. The canvas is divided along its longer dimension, so a
+1000×300 canvas with two screens becomes two 500×300 KDE displays. Changing the browser size
 continues to resize the stream normally; crossing between wide and tall
 automatically changes the split direction. No service or desktop restart is
 performed.
+
+The installed default reserves eight nested outputs. Set
+`WEBKDE_MAX_SCREENS` to a value from 1 through 8 before installation if a
+smaller maximum is preferred.
 
 `make status` (or `/opt/webkde/scripts/display-mode.sh status`) remains
 available for diagnostics. The old `make single` and `make dual` controls were
@@ -145,7 +150,7 @@ container connects to the host user's Pulse socket and Selkies captures
 
 ## Mouse, scrolling, and clipboard
 
-The browser pointer reaches KWin through Pixelflux and Labwc as a virtual
+The browser pointer reaches KWin through Pixelflux and Sway as a virtual
 Wayland seat. KDE System Settings therefore reports that no physical mouse is
 connected; this is expected, and its per-device speed controls do not apply.
 
@@ -191,7 +196,7 @@ container logs shown above. Important sockets are:
 
 ```text
 /run/user/<uid>/webkde/wayland-1  Pixelflux compositor
-/run/user/<uid>/webkde/wayland-0  Labwc compositor; nested host KWin connects here
+/run/user/<uid>/webkde/wayland-2  Sway compositor; nested host KWin connects here
 /run/user/<uid>/wayland-0         nested KWin display; Plasma apps connect here
 ```
 
@@ -202,7 +207,7 @@ forces a complete clean recovery if necessary.
 
 If a future KWin release uses names other than `WL-0` and `WL-1`, inspect
 `QT_QPA_PLATFORM=wayland WAYLAND_DISPLAY=wayland-0 kscreen-doctor -o` and
-adjust `scripts/webkde-bridge.sh` and `container/defaults/labwc.xml`.
+adjust `scripts/webkde-bridge.sh` and `container/defaults/sway.conf`.
 
 ## Reproducibility and upstream
 
@@ -213,5 +218,5 @@ so its documented `file_transfers=none` setting actually disables transfers.
 
 - [LinuxServer Selkies base image](https://github.com/linuxserver/docker-baseimage-selkies)
 - [Selkies](https://github.com/selkies-project/selkies)
-- [Labwc](https://github.com/labwc/labwc)
+- [Sway](https://github.com/swaywm/sway)
 - [KWin](https://invent.kde.org/plasma/kwin)

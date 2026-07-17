@@ -27,6 +27,7 @@ services:
       WEBKDE_BASIC_AUTH: ${WEBKDE_BASIC_AUTH:-true}
       WEBKDE_SCROLL_SCALE: ${WEBKDE_SCROLL_SCALE:-0.25}
       WEBKDE_BRIDGE_DIR: /config/.XDG/webkde-bridge
+      WEBKDE_MAX_SCREENS: ${WEBKDE_MAX_SCREENS:-8}
       TITLE: WebKDE
 
       # The browser owns the Pixelflux resolution. WebKDE only partitions it.

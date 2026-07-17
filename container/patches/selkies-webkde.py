@@ -17,28 +17,56 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                         try:
                             parts = message.split(",")
                             count = int(parts[1])
-                            orientation = parts[2]
-                            if count not in (1, 2) or orientation not in ("horizontal", "vertical"):
+                            max_screens = int(os.environ.get("WEBKDE_MAX_SCREENS", "8"))
+                            if not 1 <= count <= max_screens:
                                 raise ValueError("invalid layout")
+
+                            client_info = self.display_clients.get(client_display_id or "primary", {})
+                            canvas_width = int(client_info.get("width") or parts[3])
+                            canvas_height = int(client_info.get("height") or parts[4])
+                            orientation = "horizontal" if canvas_width >= canvas_height else "vertical"
 
                             request_dir = pathlib.Path(os.environ.get(
                                 "WEBKDE_BRIDGE_DIR", "/config/.XDG/webkde-bridge"
                             ))
                             request_dir.mkdir(parents=True, exist_ok=True)
-                            viewport = ",".join(parts[3:5]) if len(parts) >= 5 else "0,0"
-                            request = f"{count},{orientation},{viewport}\\n"
+                            request = f"{count},{orientation},{canvas_width},{canvas_height}\\n"
                             temporary = request_dir / "layout-request.tmp"
                             temporary.write_text(request)
                             temporary.replace(request_dir / "layout-request")
 
-                            # The host bridge enables WL-1 before Labwc tries to tile it.
-                            if count == 2:
-                                await asyncio.sleep(0.75)
-                            key = 0xFFC6 if count == 1 else (0xFFC7 if orientation == "horizontal" else 0xFFC8)
-                            for keysym in (0xFFE3, 0xFFE9, key):
-                                await self.input_handler.send_x11_keypress(keysym, down=True)
-                            for keysym in (key, 0xFFE9, 0xFFE3):
-                                await self.input_handler.send_x11_keypress(keysym, down=False)
+                            # Give the host bridge time to enable the requested KWin outputs,
+                            # then place their outer windows through Sway's native IPC.
+                            await asyncio.sleep(1.0)
+                            sockets = list(pathlib.Path("/config/.XDG").glob("sway-ipc.*.sock"))
+                            if not sockets:
+                                raise OSError("Sway IPC socket is unavailable")
+                            sway_socket = max(sockets, key=lambda path: path.stat().st_mtime)
+                            offset = 0
+                            for index in range(max_screens):
+                                criteria = f'[title=".*WL-{index}.*"]'
+                                if index >= count:
+                                    command = f"{criteria} move scratchpad"
+                                elif orientation == "horizontal":
+                                    size = canvas_width // count + (1 if index < canvas_width % count else 0)
+                                    command = (f"{criteria} move workspace current, floating enable, "
+                                               f"resize set width {size} px height {canvas_height} px, "
+                                               f"move position {offset} px 0 px")
+                                    offset += size
+                                else:
+                                    size = canvas_height // count + (1 if index < canvas_height % count else 0)
+                                    command = (f"{criteria} move workspace current, floating enable, "
+                                               f"resize set width {canvas_width} px height {size} px, "
+                                               f"move position 0 px {offset} px")
+                                    offset += size
+                                process = await asyncio.create_subprocess_exec(
+                                    "swaymsg", "--socket", str(sway_socket), command,
+                                    stdout=asyncio.subprocess.DEVNULL,
+                                    stderr=asyncio.subprocess.PIPE,
+                                )
+                                _, stderr = await process.communicate()
+                                if process.returncode:
+                                    raise OSError(stderr.decode(errors="replace").strip())
                             await websocket.send(f"WEBKDE_LAYOUT_APPLIED,{count},{orientation}")
                         except (IndexError, ValueError, OSError) as error:
                             data_logger.warning(f"Invalid WebKDE layout request: {message}: {error}")

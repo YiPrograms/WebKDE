@@ -9,7 +9,7 @@ fi
 # shellcheck disable=SC1090
 source "${env_file}"
 
-outer_socket="${WEBKDE_RUNTIME_DIR}/wayland-0"
+outer_socket="${WEBKDE_RUNTIME_DIR}/wayland-2"
 "${repo_dir}/scripts/wait-wayland.sh" "${outer_socket}"
 
 export WAYLAND_DISPLAY="${outer_socket}"

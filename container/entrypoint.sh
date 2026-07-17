@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+max_screens="${WEBKDE_MAX_SCREENS:-8}"
+case "${max_screens}" in
+  [1-8]) ;;
+  *) echo "WEBKDE_MAX_SCREENS must be between 1 and 8." >&2; exit 2 ;;
+esac
+sed -i -E "s/data-max-screens=\"[1-8]\"/data-max-screens=\"${max_screens}\"/" \
+  /usr/share/selkies/selkies-dashboard/index.html
+
 case "${WEBKDE_BASIC_AUTH:-true}" in
   true)
     ;;
