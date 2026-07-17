@@ -26,10 +26,10 @@ services:
       PASSWORD: ${WEBKDE_PASSWORD:?Run ./scripts/configure.sh before starting WebKDE}
       WEBKDE_BASIC_AUTH: ${WEBKDE_BASIC_AUTH:-true}
       WEBKDE_SCROLL_SCALE: ${WEBKDE_SCROLL_SCALE:-0.25}
+      WEBKDE_BRIDGE_DIR: /config/.XDG/webkde-bridge
       TITLE: WebKDE
 
-      # Keep resolution client-controlled so scripts/display-mode.sh can resize
-      # the Pixelflux output without restarting the compositor.
+      # The browser owns the Pixelflux resolution. WebKDE only partitions it.
       SELKIES_IS_MANUAL_RESOLUTION_MODE: "false"
       SELKIES_SECOND_SCREEN: "false"
       SELKIES_AUDIO_ENABLED: "true"

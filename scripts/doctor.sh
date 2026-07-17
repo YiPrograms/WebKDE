@@ -24,6 +24,11 @@ for command in docker kwin_wayland_wrapper startplasma-wayland kscreen-doctor op
     fail "missing command: ${command}"
   fi
 done
+if command -v qdbus6 >/dev/null 2>&1 || command -v qdbus-qt6 >/dev/null 2>&1 || command -v qdbus >/dev/null 2>&1; then
+  ok "Qt D-Bus command is available"
+else
+  fail "missing Qt D-Bus command (qdbus6, qdbus-qt6, or qdbus)"
+fi
 
 if docker compose version >/dev/null 2>&1; then ok "Docker Compose v2 is available"; else fail "Docker Compose v2 is unavailable"; fi
 if grep -qw avx2 /proc/cpuinfo; then ok "CPU supports AVX2"; else fail "CPU lacks AVX2 required by this Wayland design"; fi

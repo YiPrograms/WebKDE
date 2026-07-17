@@ -29,12 +29,21 @@ kde_inhibit="$(command -v kde-inhibit || true)"
 systemd_inhibit="$(command -v systemd-inhibit || true)"
 systemctl_command="$(command -v systemctl || true)"
 sleep_command="$(command -v sleep || true)"
+qdbus_command=""
+for candidate in qdbus6 qdbus-qt6 qdbus; do
+  qdbus_command="$(command -v "${candidate}" 2>/dev/null || true)"
+  [[ -n "${qdbus_command}" ]] && break
+done
 for value in "${kde_inhibit}" "${systemd_inhibit}" "${systemctl_command}" "${sleep_command}"; do
   if [[ -z "${value}" ]]; then
     echo "The KDE and systemd inhibitor commands are required. Complete the host prerequisites first." >&2
     exit 1
   fi
 done
+if [[ -z "${qdbus_command}" ]]; then
+  echo "qdbus is required for KDE clipboard synchronization. Complete the host prerequisites first." >&2
+  exit 1
+fi
 
 plasma_runner=""
 for candidate in \
@@ -101,6 +110,7 @@ set_config WEBKDE_PGID "${target_gid}"
 set_config WEBKDE_RUNTIME_DIR "/run/user/${target_uid}/webkde"
 set_config WEBKDE_PULSE_DIR "/run/user/${target_uid}/pulse"
 set_config WEBKDE_CONFIG_DIR "/var/lib/webkde/config"
+set_config WEBKDE_QDBUS "${qdbus_command}"
 if [[ -n "${plasma_runner}" ]]; then
   set_config WEBKDE_PLASMA_DBUS_RUNNER "${plasma_runner}"
 fi
@@ -110,10 +120,6 @@ source "${installed_env}"
 for dimension in "${WEBKDE_MONITOR_WIDTH}" "${WEBKDE_MONITOR_HEIGHT}"; do
   [[ "${dimension}" =~ ^[0-9]+$ ]] || { echo "Monitor dimensions must be positive integers." >&2; exit 1; }
 done
-[[ "${WEBKDE_DEFAULT_MODE}" == single || "${WEBKDE_DEFAULT_MODE}" == dual ]] || {
-  echo "WEBKDE_DEFAULT_MODE must be single or dual." >&2
-  exit 1
-}
 [[ -n "${WEBKDE_PASSWORD}" && "${WEBKDE_PASSWORD}" != replace-with-a-long-random-password ]] || {
   echo "Set a real WEBKDE_PASSWORD in .env before installing." >&2
   exit 1
@@ -139,6 +145,9 @@ sed \
   -e "s|@SLEEP@|${sleep_command}|g" \
   /opt/webkde/systemd/user/webkde-inhibit.service.in \
   >"${user_unit_dir}/webkde-inhibit.service"
+install -m 0644 -o "${target_uid}" -g "${target_gid}" \
+  /opt/webkde/systemd/user/webkde-bridge.service.in \
+  "${user_unit_dir}/webkde-bridge.service"
 sed \
   -e "s|@RUNTIME@|${WEBKDE_RUNTIME_DIR}|g" \
   -e "s|@WIDTH@|${WEBKDE_MONITOR_WIDTH}|g" \
@@ -149,10 +158,12 @@ sed \
 chown "${target_uid}:${target_gid}" \
   "${user_unit_dir}" \
   "${user_unit_dir}/plasma-kwin_wayland.service.d" \
+  "${user_unit_dir}/webkde-bridge.service" \
   "${user_unit_dir}/webkde-inhibit.service" \
   "${user_unit_dir}/webkde-session.service" \
   "${user_unit_dir}/plasma-kwin_wayland.service.d/webkde.conf"
 chmod 0644 \
+  "${user_unit_dir}/webkde-bridge.service" \
   "${user_unit_dir}/webkde-inhibit.service" \
   "${user_unit_dir}/webkde-session.service" \
   "${user_unit_dir}/plasma-kwin_wayland.service.d/webkde.conf"

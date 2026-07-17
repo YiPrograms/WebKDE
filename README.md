@@ -15,10 +15,9 @@ container: Labwc (wayland-0, shared with the host)
 host: nested KWin (WL-0 + WL-1) -> Plasma -> host applications
 ```
 
-The dual layout is two 1920x1080 KWin outputs on one 3840x1080 Pixelflux
-canvas; the initial active mode is single-monitor by default. It can switch
-live between one and two monitors without restarting Pixelflux, Labwc, KWin,
-Plasma, or desktop applications.
+The browser controls the streamed canvas size. A page control partitions that
+live canvas into one or two KWin outputs without restarting Pixelflux, Labwc,
+KWin, Plasma, or desktop applications.
 
 ## Installation model
 
@@ -63,7 +62,7 @@ $EDITOR .env
 
 The configuration helper creates a git-ignored `.env` and a random web
 password. Review at least the bind address, port, GPU render node, timezone,
-monitor dimensions, and initial display mode.
+monitor dimensions (used only as KWin's startup fallback).
 
 Install the application for that user:
 
@@ -96,29 +95,18 @@ ssh -L 3001:127.0.0.1:3001 DESKTOP_USER@WEBKDE_HOST
 
 Then open `https://127.0.0.1:3001/` on the client.
 
-## Display modes
+## Virtual screens
 
-From the source checkout, select the live mode with:
+Use the **Virtual screens** selector at the top-right of the WebKDE page. The
+choice is stored by that browser. With two screens, a wide browser is split
+left/right and a tall browser is split top/bottom. Changing the browser size
+continues to resize the stream normally; crossing between wide and tall
+automatically changes the split direction. No service or desktop restart is
+performed.
 
-```bash
-make single
-make dual
-make status
-```
-
-The same commands are available after deployment as:
-
-```bash
-/opt/webkde/scripts/display-mode.sh single
-/opt/webkde/scripts/display-mode.sh dual
-/opt/webkde/scripts/display-mode.sh status
-```
-
-They use Selkies' live `r,<resolution>,primary` WebSocket control and KScreen.
-The streamed canvas and active KWin output change while all compositor and
-desktop processes stay alive. The selection is retained across browser
-reconnects. Set `WEBKDE_DEFAULT_MODE=single` or `dual` for the mode applied
-whenever WebKDE itself starts.
+`make status` (or `/opt/webkde/scripts/display-mode.sh status`) remains
+available for diagnostics. The old `make single` and `make dual` controls were
+removed because they forced a fixed stream resolution.
 
 ## Operations
 
@@ -131,7 +119,7 @@ make validate
 ```
 
 Edit `/etc/webkde/webkde.env` for an installed system. A bind address, port,
-password, or default-mode change takes effect after a restart. Monitor-size or
+password change takes effect after a restart. Monitor-size or
 base-image changes also rebuild the local image automatically on restart.
 
 To redeploy a newer checkout while preserving configuration and data, rerun:
@@ -172,12 +160,13 @@ Add or change that value in `/etc/webkde/webkde.env`, then restart WebKDE. A
 smaller value scrolls more slowly; accepted values are clamped between `0.05`
 and `4.0`.
 
-Text clipboard synchronization is enabled in both directions. Use the normal
-copy/paste shortcuts in KDE and in the local browser. Grant the site's
+Text clipboard synchronization is relayed through KDE Klipper in both
+directions. Use the normal copy/paste shortcuts in KDE and in the local browser. Grant the site's
 clipboard permission when the browser asks; clipboard APIs require the HTTPS
 page to be focused and may require one initial user gesture. The Selkies
 sidebar clipboard box is also available when browser clipboard policy blocks
-automatic access.
+automatic access. The bridge currently synchronizes text, not images or file
+lists.
 
 ## Security
 
@@ -213,7 +202,7 @@ forces a complete clean recovery if necessary.
 
 If a future KWin release uses names other than `WL-0` and `WL-1`, inspect
 `QT_QPA_PLATFORM=wayland WAYLAND_DISPLAY=wayland-0 kscreen-doctor -o` and
-adjust `scripts/display-mode.sh`.
+adjust `scripts/webkde-bridge.sh` and `container/defaults/labwc.xml`.
 
 ## Reproducibility and upstream
 

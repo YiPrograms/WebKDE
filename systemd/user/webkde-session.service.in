@@ -8,6 +8,7 @@ WorkingDirectory=/opt/webkde
 ExecStartPre=/opt/webkde/scripts/wait-wayland.sh @RUNTIME@/wayland-0
 ExecStart=/opt/webkde/scripts/start-plasma.sh
 ExecStartPost=/opt/webkde/scripts/initial-display-mode.sh
+ExecStartPost=@SYSTEMCTL@ --user start webkde-bridge.service
 ExecStartPost=@SYSTEMCTL@ --user start webkde-inhibit.service
 # startplasma exits cleanly when its outer Wayland connection disappears.
 # Restart even after that clean exit so a transient container/Labwc restart

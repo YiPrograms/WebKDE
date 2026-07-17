@@ -11,7 +11,9 @@ LABEL org.opencontainers.image.title="WebKDE Selkies bridge" \
 COPY --chmod=0755 container/defaults/startwm_wayland.sh /defaults/startwm_wayland.sh
 COPY --chmod=0644 container/defaults/labwc.xml /defaults/labwc.xml
 COPY --chmod=0755 container/patches/selkies-empty-file-transfers.py /tmp/selkies-empty-file-transfers.py
-COPY --chmod=0755 container/patches/selkies-host-resolution.py /tmp/selkies-host-resolution.py
+COPY --chmod=0755 container/patches/selkies-webkde.py /tmp/selkies-webkde.py
+COPY --chmod=0755 container/patches/selkies-web-ui.py /tmp/selkies-web-ui.py
+COPY --chmod=0644 container/web/webkde-controls.js /usr/share/selkies/selkies-dashboard/webkde-controls.js
 COPY --chmod=0755 container/patches/selkies-scroll-scale.py /tmp/selkies-scroll-scale.py
 COPY --chmod=0755 container/entrypoint.sh /webkde-entrypoint.sh
 RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
@@ -22,10 +24,11 @@ RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
       -e "s/@MONITOR_HEIGHT@/${MONITOR_HEIGHT}/g" \
       /defaults/labwc.xml \
     && /lsiopy/bin/python3 /tmp/selkies-empty-file-transfers.py \
-    && /lsiopy/bin/python3 /tmp/selkies-host-resolution.py \
+    && /lsiopy/bin/python3 /tmp/selkies-webkde.py \
+    && /lsiopy/bin/python3 /tmp/selkies-web-ui.py \
     && /lsiopy/bin/python3 /tmp/selkies-scroll-scale.py \
     && rm /tmp/selkies-empty-file-transfers.py \
-      /tmp/selkies-host-resolution.py /tmp/selkies-scroll-scale.py
+      /tmp/selkies-webkde.py /tmp/selkies-web-ui.py /tmp/selkies-scroll-scale.py
 
 HEALTHCHECK --interval=20s --timeout=5s --start-period=45s --retries=5 \
   CMD curl --insecure --fail --silent --show-error \

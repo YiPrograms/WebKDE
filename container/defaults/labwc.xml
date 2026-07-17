@@ -16,28 +16,46 @@
 
   <keyboard>
     <default />
+    <!-- Selkies injects these private shortcuts for the browser UI control. -->
+    <keybind key="C-A-F9">
+      <action name="ForEach">
+        <query><title>*WL-0*</title></query>
+        <then><action name="UnSnap" /><action name="Maximize" /></then>
+      </action>
+    </keybind>
+    <keybind key="C-A-F10">
+      <action name="ForEach">
+        <query><title>*WL-0*</title></query>
+        <then><action name="UnMaximize" /><action name="SnapToEdge" direction="left" /></then>
+      </action>
+      <action name="ForEach">
+        <query><title>*WL-1*</title></query>
+        <then><action name="UnMaximize" /><action name="SnapToEdge" direction="right" /></then>
+      </action>
+    </keybind>
+    <keybind key="C-A-F11">
+      <action name="ForEach">
+        <query><title>*WL-0*</title></query>
+        <then><action name="UnMaximize" /><action name="SnapToEdge" direction="up" /></then>
+      </action>
+      <action name="ForEach">
+        <query><title>*WL-1*</title></query>
+        <then><action name="UnMaximize" /><action name="SnapToEdge" direction="down" /></then>
+      </action>
+    </keybind>
   </keyboard>
 
   <mouse>
     <default />
   </mouse>
 
-  <!--
-    KWin's nested Wayland backend titles its output windows with the backend
-    output name. Keep both windows alive for the entire Plasma session and
-    place them on a single Pixelflux canvas. The host-side mode script enables
-    or disables WL-1 through KScreen.
-  -->
+  <!-- KWin's nested backend includes the output name in each window title. -->
   <windowRules>
     <windowRule title="*WL-0*" serverDecoration="no"
-                skipTaskbar="yes" skipWindowSwitcher="yes" fixedPosition="yes">
-      <action name="MoveTo" x="0" y="0" />
-      <action name="ResizeTo" width="@MONITOR_WIDTH@" height="@MONITOR_HEIGHT@" />
+                skipTaskbar="yes" skipWindowSwitcher="yes">
+      <action name="Maximize" />
     </windowRule>
     <windowRule title="*WL-1*" serverDecoration="no"
-                skipTaskbar="yes" skipWindowSwitcher="yes" fixedPosition="yes">
-      <action name="MoveTo" x="@MONITOR_WIDTH@" y="0" />
-      <action name="ResizeTo" width="@MONITOR_WIDTH@" height="@MONITOR_HEIGHT@" />
-    </windowRule>
+                skipTaskbar="yes" skipWindowSwitcher="yes" />
   </windowRules>
 </labwc_config>

@@ -1,0 +1,11 @@
+[Unit]
+Description=WebKDE clipboard and virtual-screen bridge
+After=plasma-workspace.target
+PartOf=webkde-session.service
+
+[Service]
+Type=simple
+Environment=WEBKDE_ENV_FILE=/etc/webkde/webkde.env
+ExecStart=/opt/webkde/scripts/webkde-bridge.sh
+Restart=on-failure
+RestartSec=2s

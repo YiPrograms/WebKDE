@@ -12,6 +12,7 @@ export WAYLAND_DISPLAY=wayland-1
 # The upstream persistent default launches a container terminal. WebKDE only
 # displays the two nested host KWin surfaces, so keep Labwc autostart empty.
 install -d -m 0755 "${HOME}/.config/labwc"
+install -m 0644 /defaults/labwc.xml "${HOME}/.config/labwc/rc.xml"
 : >"${HOME}/.config/labwc/autostart"
 
 exec labwc
