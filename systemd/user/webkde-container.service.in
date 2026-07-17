@@ -1,0 +1,16 @@
+[Unit]
+Description=WebKDE Selkies container
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=@REPO@
+ExecStartPre=/usr/bin/install -d -m 0700 @RUNTIME@
+ExecStart=@REPO@/scripts/wait-docker.sh
+ExecStart=/usr/bin/docker compose up --detach --build
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=15min
+TimeoutStopSec=2min
+
+[Install]
+WantedBy=default.target

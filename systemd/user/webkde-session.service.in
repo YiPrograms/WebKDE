@@ -1,0 +1,18 @@
+[Unit]
+Description=Host-native KDE Plasma session streamed by WebKDE
+Requires=webkde-container.service
+After=webkde-container.service
+
+[Service]
+Type=simple
+WorkingDirectory=@REPO@
+ExecStartPre=@REPO@/scripts/wait-wayland.sh @RUNTIME@/wayland-0
+ExecStart=@REPO@/scripts/start-plasma.sh
+ExecStartPost=@REPO@/scripts/initial-display-mode.sh
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=5min
+TimeoutStopSec=45s
+
+[Install]
+WantedBy=default.target

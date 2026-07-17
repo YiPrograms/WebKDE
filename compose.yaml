@@ -1,0 +1,53 @@
+name: webkde
+
+services:
+  selkies:
+    build:
+      context: .
+      args:
+        SELKIES_BASE_IMAGE: ${SELKIES_BASE_IMAGE:-ghcr.io/linuxserver/baseimage-selkies:debiantrixie@sha256:ac7fd6d182238b4a99e66554c5e75be48a714e2a0c9da81bd18e171ff9ba3dd5}
+    image: webkde-selkies:local
+    container_name: webkde-selkies
+    environment:
+      PUID: ${WEBKDE_PUID:-1000}
+      PGID: ${WEBKDE_PGID:-1000}
+      TZ: ${WEBKDE_TZ:-Etc/UTC}
+
+      PIXELFLUX_WAYLAND: "true"
+      SELKIES_DESKTOP: "false"
+      START_DOCKER: "false"
+
+      DRINODE: ${WEBKDE_DRI_NODE:-/dev/dri/renderD128}
+      DRI_NODE: ${WEBKDE_DRI_NODE:-/dev/dri/renderD128}
+
+      CUSTOM_USER: ${WEBKDE_USER:-webkde}
+      PASSWORD: ${WEBKDE_PASSWORD:?Run ./scripts/configure.sh before starting WebKDE}
+      TITLE: WebKDE
+
+      # Keep resolution client-controlled so scripts/display-mode.sh can resize
+      # the Pixelflux output without restarting the compositor.
+      SELKIES_IS_MANUAL_RESOLUTION_MODE: "false"
+      SELKIES_SECOND_SCREEN: "false"
+      SELKIES_AUDIO_ENABLED: "true"
+      SELKIES_MICROPHONE_ENABLED: "false"
+      SELKIES_AUDIO_DEVICE_NAME: output.monitor
+      PULSE_SERVER: unix:/run/host-pulse/native
+
+      # Host applications own the filesystem and command environment. Do not
+      # expose misleading container-side file/application controls.
+      SELKIES_FILE_TRANSFERS: none
+      SELKIES_COMMAND_ENABLED: "false"
+      SELKIES_UI_SIDEBAR_SHOW_FILES: "false"
+      SELKIES_UI_SIDEBAR_SHOW_APPS: "false"
+      NO_GAMEPAD: "true"
+      NO_FULL: "true"
+    devices:
+      - /dev/dri:/dev/dri
+    ports:
+      - "${WEBKDE_BIND:-127.0.0.1}:${WEBKDE_HTTPS_PORT:-3001}:3001"
+    volumes:
+      - ./data/config:/config
+      - ${WEBKDE_RUNTIME_DIR:-/run/user/1000/webkde}:/config/.XDG
+      - ${WEBKDE_PULSE_DIR:-/run/user/1000/pulse}:/run/host-pulse
+    shm_size: 1gb
+    restart: unless-stopped
