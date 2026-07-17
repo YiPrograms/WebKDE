@@ -9,4 +9,9 @@ export XKB_DEFAULT_LAYOUT="${XKB_DEFAULT_LAYOUT:-us}"
 export XKB_DEFAULT_RULES="${XKB_DEFAULT_RULES:-evdev}"
 export WAYLAND_DISPLAY=wayland-1
 
+# The upstream persistent default launches a container terminal. WebKDE only
+# displays the two nested host KWin surfaces, so keep Labwc autostart empty.
+install -d -m 0755 "${HOME}/.config/labwc"
+: >"${HOME}/.config/labwc/autostart"
+
 exec labwc

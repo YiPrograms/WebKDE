@@ -29,17 +29,13 @@
     or disables WL-1 through KScreen.
   -->
   <windowRules>
-    <windowRule title="*WL-0*" serverDecoration="no">
-      <skipTaskbar>yes</skipTaskbar>
-      <skipWindowSwitcher>yes</skipWindowSwitcher>
-      <fixedPosition>yes</fixedPosition>
+    <windowRule title="*WL-0*" serverDecoration="no"
+                skipTaskbar="yes" skipWindowSwitcher="yes" fixedPosition="yes">
       <action name="MoveTo" x="0" y="0" />
       <action name="ResizeTo" width="@MONITOR_WIDTH@" height="@MONITOR_HEIGHT@" />
     </windowRule>
-    <windowRule title="*WL-1*" serverDecoration="no">
-      <skipTaskbar>yes</skipTaskbar>
-      <skipWindowSwitcher>yes</skipWindowSwitcher>
-      <fixedPosition>yes</fixedPosition>
+    <windowRule title="*WL-1*" serverDecoration="no"
+                skipTaskbar="yes" skipWindowSwitcher="yes" fixedPosition="yes">
       <action name="MoveTo" x="@MONITOR_WIDTH@" y="0" />
       <action name="ResizeTo" width="@MONITOR_WIDTH@" height="@MONITOR_HEIGHT@" />
     </windowRule>

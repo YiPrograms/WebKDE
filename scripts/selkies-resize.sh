@@ -10,7 +10,12 @@ docker exec webkde-selkies /lsiopy/bin/python -c '
 import asyncio, sys, websockets
 async def resize():
     async with websockets.connect("ws://127.0.0.1:8082") as ws:
-        await ws.send(f"r,{sys.argv[1]},primary")
-        await asyncio.sleep(0.25)
+        resolution = sys.argv[1]
+        expected = f"WEBKDE_RESIZED,primary,{resolution}"
+        await ws.send(f"r,{resolution},primary")
+        while True:
+            message = await asyncio.wait_for(ws.recv(), timeout=30)
+            if message == expected:
+                return
 asyncio.run(resize())
 ' "${resolution}"

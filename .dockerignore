@@ -7,3 +7,4 @@
 !container/defaults/startwm_wayland.sh
 !container/patches/
 !container/patches/selkies-empty-file-transfers.py
+!container/patches/selkies-host-resolution.py

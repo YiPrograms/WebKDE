@@ -29,12 +29,10 @@ case "${mode}" in
     require_session
     kscreen-doctor output.WL-1.disable
     "${repo_dir}/scripts/selkies-resize.sh" "${width}x${height}"
-    "${repo_dir}/scripts/wait-outer-resolution.sh" "${width}x${height}"
     ;;
   dual)
     require_session
     "${repo_dir}/scripts/selkies-resize.sh" "${dual_width}x${height}"
-    "${repo_dir}/scripts/wait-outer-resolution.sh" "${dual_width}x${height}"
     kscreen-doctor \
       output.WL-0.enable output.WL-0.position.0,0 \
       output.WL-1.enable output.WL-1.position."${width}",0
