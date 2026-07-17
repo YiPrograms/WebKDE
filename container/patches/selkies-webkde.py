@@ -24,6 +24,9 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                             client_info = self.display_clients.get(client_display_id or "primary", {})
                             canvas_width = int(client_info.get("width") or parts[3])
                             canvas_height = int(client_info.get("height") or parts[4])
+                            desktop_scale = float(getattr(self, "webkde_scale", 1.0))
+                            canvas_width = max(count, round(canvas_width / desktop_scale))
+                            canvas_height = max(1, round(canvas_height / desktop_scale))
                             orientation = "horizontal" if canvas_width >= canvas_height else "vertical"
 
                             previous_task = getattr(self, "webkde_layout_task", None)
@@ -155,6 +158,40 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                         except (IndexError, ValueError, OSError) as error:
                             data_logger.warning(f"Invalid WebKDE layout request: {message}: {error}")
 
+                    elif message.startswith("WEBKDE_SCALE,"):
+                        try:
+                            dpi = int(message.split(",", 1)[1])
+                            if dpi < 96 or dpi > 288 or dpi % 24:
+                                raise ValueError("scale DPI must be from 96 through 288 in steps of 24")
+                            scale = dpi / 96.0
+                            sockets = list(pathlib.Path("/config/.XDG").glob(
+                                "sway-ipc.*.sock"
+                            ))
+                            if not sockets:
+                                raise OSError("Sway IPC socket is unavailable")
+                            sway_socket = max(sockets, key=lambda path: path.stat().st_mtime)
+                            process = await asyncio.create_subprocess_exec(
+                                "swaymsg", "--socket", str(sway_socket),
+                                f"output * scale {scale:g}",
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.PIPE,
+                            )
+                            stdout, stderr = await process.communicate()
+                            replies = json.loads(stdout.decode())
+                            failures = [
+                                reply.get("error", "unknown Sway error")
+                                for reply in replies if not reply.get("success")
+                            ]
+                            if process.returncode or failures:
+                                detail = "; ".join(failures) or stderr.decode(
+                                    errors="replace"
+                                ).strip()
+                                raise OSError(detail or "swaymsg failed")
+                            self.webkde_scale = scale
+                            await websocket.send(f"WEBKDE_SCALE_APPLIED,{dpi}")
+                        except (IndexError, ValueError, OSError, json.JSONDecodeError) as error:
+                            data_logger.warning(f"Invalid WebKDE scale request: {message}: {error}")
+
                     elif message in ("WEBKDE_RESTART_PLASMA", "WEBKDE_RESTART_KWIN"):
                         try:
                             request_dir = pathlib.Path(os.environ.get(
@@ -173,7 +210,19 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
 '''
 if source.count(needle) != 1:
     raise SystemExit("Pinned Selkies source no longer matches layout insertion point")
-selkies.write_text(source.replace(needle, handler + needle))
+source = source.replace(needle, handler + needle)
+
+# WebKDE applies Selkies' DPI setting to the Sway output that contains the
+# nested KWin windows. The upstream wlr-randr fallback targets a different
+# Wayland layer and otherwise appears to succeed without changing the desktop.
+wlr_needle = '''            elif which("wlr-randr") and display_id == 'primary':
+'''
+wlr_replacement = '''            elif (which("wlr-randr") and display_id == 'primary'
+                  and not os.environ.get("WEBKDE_BRIDGE_DIR")):
+'''
+if source.count(wlr_needle) != 1:
+    raise SystemExit("Pinned Selkies source no longer matches DPI fallback")
+selkies.write_text(source.replace(wlr_needle, wlr_replacement))
 
 input_handler = input_matches[0]
 source = input_handler.read_text()

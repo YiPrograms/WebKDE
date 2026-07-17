@@ -4,8 +4,24 @@
   let dataSocket;
   const nativeSend = WebSocket.prototype.send;
   WebSocket.prototype.send = function(data) {
-    if (typeof data === "string" && data.startsWith("SETTINGS,")) dataSocket = this;
-    return nativeSend.call(this, data);
+    let scalingDpi;
+    if (typeof data === "string" && data.startsWith("SETTINGS,")) {
+      dataSocket = this;
+      try {
+        scalingDpi = Number(JSON.parse(data.slice("SETTINGS,".length)).scaling_dpi);
+      } catch (error) {
+        console.warn("Could not read Selkies scaling DPI", error);
+      }
+    }
+    const result = nativeSend.call(this, data);
+    if (scalingDpi >= 96 && scalingDpi <= 288 && scalingDpi % 24 === 0) {
+      setTimeout(() => {
+        if (this.readyState !== WebSocket.OPEN) return;
+        nativeSend.call(this, `WEBKDE_SCALE,${scalingDpi}`);
+        setTimeout(() => apply(true), 250);
+      }, 0);
+    }
+    return result;
   };
 
   let timer;

@@ -105,6 +105,12 @@ continues to resize the stream normally; crossing between wide and tall
 automatically changes the split direction. No service or desktop restart is
 performed.
 
+Selkies' **UI Scaling** setting controls the global KDE desktop scale. WebKDE
+applies it to the intermediate Sway output and then partitions the remaining
+logical canvas between the virtual screens. KWin's nested Wayland backend
+ignores per-output scale changes made in KDE Display Configuration, so use the
+Selkies setting for this deployment.
+
 The installed default reserves eight nested outputs. Set
 `WEBKDE_MAX_SCREENS` to a value from 1 through 8 before installation if a
 smaller maximum is preferred.
