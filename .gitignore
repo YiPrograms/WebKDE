@@ -2,3 +2,4 @@
 data/
 runtime/
 *.log
+__pycache__/

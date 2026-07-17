@@ -177,7 +177,9 @@ KWin release uses names other than `WL-0` and `WL-1`, inspect
 ## Reproducibility and upstream
 
 The Selkies base image is pinned to a multi-architecture OCI digest. Adopt
-upstream updates deliberately, validate, and rebuild.
+upstream updates deliberately, validate, and rebuild. The image includes a
+narrow, build-verified workaround for the pinned Selkies release's list parser
+so its documented `file_transfers=none` setting actually disables transfers.
 
 - [LinuxServer Selkies base image](https://github.com/linuxserver/docker-baseimage-selkies)
 - [Selkies](https://github.com/selkies-project/selkies)

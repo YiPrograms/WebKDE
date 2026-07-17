@@ -41,6 +41,13 @@ services:
       SELKIES_COMMAND_ENABLED: "false"
       SELKIES_UI_SIDEBAR_SHOW_FILES: "false"
       SELKIES_UI_SIDEBAR_SHOW_APPS: "false"
+      SELKIES_UI_SIDEBAR_SHOW_SHARING: "false"
+      SELKIES_ENABLE_SHARING: "false"
+      SELKIES_ENABLE_COLLAB: "false"
+      SELKIES_ENABLE_SHARED: "false"
+      SELKIES_ENABLE_PLAYER2: "false"
+      SELKIES_ENABLE_PLAYER3: "false"
+      SELKIES_ENABLE_PLAYER4: "false"
       NO_GAMEPAD: "true"
       NO_FULL: "true"
     devices:

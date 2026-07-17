@@ -10,13 +10,16 @@ LABEL org.opencontainers.image.title="WebKDE Selkies bridge" \
 
 COPY --chmod=0755 container/defaults/startwm_wayland.sh /defaults/startwm_wayland.sh
 COPY --chmod=0644 container/defaults/labwc.xml /defaults/labwc.xml
+COPY --chmod=0755 container/patches/selkies-empty-file-transfers.py /tmp/selkies-empty-file-transfers.py
 RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
       *[!0-9:]*|:*|*:) echo "Monitor dimensions must be integers" >&2; exit 1 ;; \
     esac \
     && sed -i \
       -e "s/@MONITOR_WIDTH@/${MONITOR_WIDTH}/g" \
       -e "s/@MONITOR_HEIGHT@/${MONITOR_HEIGHT}/g" \
-      /defaults/labwc.xml
+      /defaults/labwc.xml \
+    && /lsiopy/bin/python3 /tmp/selkies-empty-file-transfers.py \
+    && rm /tmp/selkies-empty-file-transfers.py
 
 HEALTHCHECK --interval=20s --timeout=5s --start-period=45s --retries=5 \
   CMD curl --insecure --fail --silent --show-error \

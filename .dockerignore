@@ -4,3 +4,5 @@
 !container/defaults/
 !container/defaults/labwc.xml
 !container/defaults/startwm_wayland.sh
+!container/patches/
+!container/patches/selkies-empty-file-transfers.py

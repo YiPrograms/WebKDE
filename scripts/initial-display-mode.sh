@@ -22,6 +22,7 @@ case "${WEBKDE_DEFAULT_MODE:-single}" in
 esac
 
 export WAYLAND_DISPLAY=wayland-0
+"${repo_dir}/scripts/wait-wayland.sh" "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/wayland-0"
 deadline=$((SECONDS + 120))
 until kscreen-doctor -o 2>/dev/null | grep -q 'WL-1'; do
   if (( SECONDS >= deadline )); then
