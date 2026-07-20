@@ -56,7 +56,13 @@ fi
 
 if [[ -r "${env_file}" ]]; then ok "configuration is readable: ${env_file}"; else warn "configuration is absent; run ./scripts/configure.sh"; fi
 wallet_credential="${repo_dir}/data/credentials/kwallet-password.cred"
-if [[ -r "${wallet_credential}" ]]; then ok "encrypted KWallet credential is configured"; else warn "KWallet automatic unlock is not configured; run ./scripts/configure.sh"; fi
+if ! LC_ALL=C systemd-creds --help 2>&1 | grep -qE '^[[:space:]]+--user([[:space:]]|$)'; then
+  warn "KWallet automatic unlock requires systemd 256 or newer"
+elif [[ -r "${wallet_credential}" ]]; then
+  ok "encrypted KWallet credential is configured"
+else
+  warn "KWallet automatic unlock is not configured; run ./scripts/configure.sh --wallet"
+fi
 if systemctl --user list-unit-files webkde.service --no-legend 2>/dev/null | grep -q '^webkde.service'; then
   ok "user-local WebKDE service is installed"
 else

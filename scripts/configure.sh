@@ -199,6 +199,10 @@ fi
 
 if [[ "${wizard}" == true ]]; then
   if [[ "${wallet_unlock}" == true && -n "${wallet_password}" ]]; then
+    if ! LC_ALL=C systemd-creds --help 2>&1 | grep -qE '^[[:space:]]+--user([[:space:]]|$)'; then
+      echo "KWallet automatic unlock requires systemd 256 or newer with user-scoped credentials." >&2
+      exit 1
+    fi
     install -d -m 0700 "$(dirname -- "${wallet_credential}")"
     plaintext="$(mktemp "${XDG_RUNTIME_DIR:-/run/user/${uid}}/webkde-wallet.XXXXXX")"
     encrypted="${wallet_credential}.tmp.$$"
@@ -206,7 +210,7 @@ if [[ "${wizard}" == true ]]; then
     chmod 0600 "${plaintext}"
     printf '%s' "${wallet_password}" >"${plaintext}"
     wallet_password=""
-    systemd-creds encrypt --user --name=kwallet-password \
+    systemd-creds --user encrypt --name=kwallet-password \
       "${plaintext}" "${encrypted}"
     mv -f "${encrypted}" "${wallet_credential}"
     chmod 0600 "${wallet_credential}"

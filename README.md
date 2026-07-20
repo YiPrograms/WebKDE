@@ -291,7 +291,7 @@ data as well.
 The configuration wizard can unlock `kdewallet` when the WebKDE Plasma session
 starts. Enter the wallet password, which normally matches the Linux login
 password when `pam_kwallet` created the wallet. The wizard encrypts it with
-`systemd-creds --user` and stores the encrypted credential at
+`systemd-creds --user encrypt` on systemd 256 or newer and stores the encrypted credential at
 `data/credentials/kwallet-password.cred`. The password is decrypted only into
 the private runtime credential directory of `webkde-wallet.service`.
 
