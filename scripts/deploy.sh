@@ -86,6 +86,7 @@ for dimension in "${WEBKDE_MONITOR_WIDTH}" "${WEBKDE_MONITOR_HEIGHT}"; do
 done
 [[ "${WEBKDE_MAX_SCREENS}" =~ ^[1-8]$ ]] || { echo "WEBKDE_MAX_SCREENS must be between 1 and 8." >&2; exit 1; }
 [[ "${WEBKDE_BUILD_LOCAL:-false}" =~ ^(true|false)$ ]] || { echo "WEBKDE_BUILD_LOCAL must be true or false." >&2; exit 1; }
+[[ "${WEBKDE_RENDER_MODE:-auto}" =~ ^(auto|gpu|cpu)$ ]] || { echo "WEBKDE_RENDER_MODE must be gpu, cpu, or auto." >&2; exit 1; }
 [[ "${WEBKDE_HTTPS_PORT}" =~ ^[0-9]+$ ]] && (( WEBKDE_HTTPS_PORT >= 1 && WEBKDE_HTTPS_PORT <= 65535 )) || {
   echo "WEBKDE_HTTPS_PORT must be between 1 and 65535." >&2
   exit 1

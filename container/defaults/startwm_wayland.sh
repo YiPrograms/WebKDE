@@ -14,5 +14,10 @@ rm -f \
   "${XDG_RUNTIME_DIR}"/sway-ipc.*.sock
 
 export WLR_BACKENDS=wayland
-export WLR_RENDERER=gles2
+renderer_device="${DRINODE:-${DRI_NODE:-}}"
+if [[ -n "${renderer_device}" && -e "${renderer_device}" ]]; then
+  export WLR_RENDERER=gles2
+else
+  export WLR_RENDERER=pixman
+fi
 exec sway --unsupported-gpu --config /defaults/sway.conf

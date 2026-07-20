@@ -37,8 +37,9 @@ doctor:
 validate:
 	bash -n install.sh scripts/*.sh container/*.sh container/defaults/*.sh
 	docker compose --env-file .env.example config --quiet
+	docker compose --env-file .env.example -f compose.yaml -f compose.gpu.yaml config --quiet
 	@! rg -n '@(ENV_FILE|RUNTIME|WIDTH|HEIGHT|MAX_SCREENS|KWIN_WRAPPER|SYSTEMCTL|WALLET_CREDENTIAL)@' \
-		Dockerfile compose.yaml container README.md docs || \
+		Dockerfile compose*.yaml container README.md docs || \
 		(echo "Unexpected unrendered system placeholder" >&2; exit 1)
 	git diff --check
 	git diff --cached --check

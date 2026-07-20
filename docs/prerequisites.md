@@ -19,7 +19,7 @@ The host needs:
 - Plasma 6, `kwin_wayland_wrapper`, `startplasma-wayland`, KScreen, and
   XWayland, including the `kde-inhibit` and Qt 6 `qdbus` utilities;
 - PipeWire with the PulseAudio-compatible server and `pactl`;
-- a DRI render node accessible to the desktop user, normally
+- an optional DRI render node for GPU acceleration, normally
   `/dev/dri/renderD128` through the `render` or `video` group;
 - an AVX2-capable CPU; and
 - a persistent systemd user manager for the desktop user.
@@ -28,20 +28,23 @@ The typical one-time service and access configuration is:
 
 ```bash
 sudo systemctl enable --now docker.service
-sudo usermod -aG docker,render,video DESKTOP_USER
+sudo usermod -aG docker DESKTOP_USER
 sudo loginctl enable-linger DESKTOP_USER
 ```
 
+Add the user to the `render` and `video` groups when GPU acceleration is
+selected. Hosts without a GPU use Pixman rendering and CPU H.264 encoding.
+
 Repeat the group-access and lingering setup for every Linux account that will
 run a concurrent WebKDE session. Each account needs its own systemd user manager
-and must be able to access Docker, the selected render node, and its own
-PipeWire-Pulse socket.
+and must be able to access Docker and its own PipeWire-Pulse socket. GPU-backed
+instances must also access the selected render node.
 
 Log out all sessions for that user and log in again after changing groups.
 Membership in the `docker` group is effectively root-equivalent; use an
 appropriately trusted account. If the distribution provides equivalent ACL or
-device-access mechanisms, those are fine as long as `docker info` and access
-to the configured render node work from a fresh login.
+device-access mechanisms, those are fine as long as `docker info` works and,
+in GPU mode, the configured render node is accessible from a fresh login.
 
 ## Common distributions
 
@@ -108,7 +111,6 @@ From a fresh login as the intended desktop user:
 ```bash
 docker info
 docker compose version
-test -r /dev/dri/renderD128 -a -w /dev/dri/renderD128
 loginctl show-user "$USER" -p Linger
 systemctl --user show-environment
 ./scripts/doctor.sh
@@ -117,3 +119,9 @@ systemctl --user show-environment
 Do not proceed until the doctor's failures are resolved. A missing Pulse socket
 may be only a warning when the user manager has not yet started PipeWire; it
 must exist by the time WebKDE starts.
+
+For GPU mode, also verify the configured render node:
+
+```bash
+test -r /dev/dri/renderD128 -a -w /dev/dri/renderD128
+```

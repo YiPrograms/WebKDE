@@ -30,13 +30,23 @@ fi
 if docker compose version >/dev/null 2>&1; then ok "Docker Compose v2 is available"; else fail "Docker Compose v2 is unavailable"; fi
 if grep -qw avx2 /proc/cpuinfo; then ok "CPU supports AVX2"; else fail "CPU lacks AVX2 required by this Wayland design"; fi
 
-dri_node="${WEBKDE_DRI_NODE:-/dev/dri/renderD128}"
-if [[ -e "${dri_node}" ]]; then
-  ok "DRI render node exists: ${dri_node}"
-  if [[ -r "${dri_node}" && -w "${dri_node}" ]]; then ok "render node is accessible"; else fail "render node is not accessible"; fi
-else
-  fail "missing DRI render node: ${dri_node}"
+dri_node="${WEBKDE_DRI_NODE:-}"
+render_mode="${WEBKDE_RENDER_MODE:-auto}"
+if [[ "${render_mode}" == auto ]]; then
+  if [[ -n "${dri_node}" && -r "${dri_node}" && -w "${dri_node}" ]]; then render_mode=gpu; else render_mode=cpu; fi
 fi
+case "${render_mode}" in
+  gpu)
+    if [[ -e "${dri_node}" ]]; then
+      ok "DRI render node exists: ${dri_node}"
+      if [[ -r "${dri_node}" && -w "${dri_node}" ]]; then ok "render node is accessible"; else fail "render node is not accessible"; fi
+    else
+      fail "missing DRI render node: ${dri_node:-not configured}"
+    fi
+    ;;
+  cpu) ok "software rendering and CPU video encoding are selected" ;;
+  *) fail "WEBKDE_RENDER_MODE must be gpu, cpu, or auto" ;;
+esac
 
 pulse_dir="${WEBKDE_PULSE_DIR:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pulse}"
 if [[ -S "${pulse_dir}/native" ]]; then ok "PipeWire-Pulse socket exists"; else warn "host Pulse socket is not active: ${pulse_dir}/native"; fi

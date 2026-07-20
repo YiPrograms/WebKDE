@@ -50,7 +50,7 @@ released when WebKDE stops, restoring the host's normal power behavior.
 ## Prerequisites
 
 WebKDE is distribution-neutral and does not install packages or alter host
-access policy. Prepare Docker, Plasma 6, PipeWire-Pulse, GPU access, Docker API
+access policy. Prepare Docker, Plasma 6, PipeWire-Pulse, Docker API
 access for the desktop user, and systemd user lingering first. See
 [Host prerequisites](docs/prerequisites.md) for checks and example commands for
 Debian/Ubuntu, Fedora, Arch-based systems, and openSUSE.
@@ -70,7 +70,7 @@ curl -fsSL https://raw.githubusercontent.com/YiPrograms/WebKDE/main/install.sh |
 The bootstrap downloads the source archive into `~/.local/share/webkde`, opens
 the configuration wizard, pulls `ghcr.io/yiprograms/webkde:latest`, creates
 `.env`, and deploys the user services. The wizard asks for the bind address,
-port, web credentials, timezone, render node, startup dimensions, virtual-screen
+port, web credentials, timezone, rendering mode, startup dimensions, virtual-screen
 limit, image source, and KWallet automatic unlock. Set `WEBKDE_INSTALL_DIR`,
 `WEBKDE_HTTPS_PORT`, or `WEBKDE_REF` before the command to select another
 absolute install directory, HTTPS port, branch, or tag:
@@ -155,9 +155,9 @@ Use a distinct port or hostname for every instance. Distinct browser origins
 also keep virtual-screen profiles and automatic-start preferences separated.
 Using different URL paths on one origin requires an authenticating reverse
 proxy and does not isolate browser local storage, so separate hostnames are
-preferred. All instances may share the same render node, but concurrent atlas
-resolution, encoder throughput, GPU memory, system RAM, and network bandwidth
-must fit the host.
+preferred. GPU-backed instances may share the same render node. Concurrent
+atlas resolution, encoder throughput, GPU memory when applicable, system RAM,
+and network bandwidth must fit the host.
 
 ## Virtual screens
 
@@ -234,6 +234,13 @@ and arrangement in Selkies instead.
 H.264 encoder so its browser-side crash recovery cannot persistently fall back
 to CPU JPEG after repeated service or compositor restarts. Change this variable
 only when a target GPU requires another Selkies encoder.
+
+`WEBKDE_RENDER_MODE=gpu` maps `/dev/dri` into the container and uses the
+configured `WEBKDE_DRI_NODE`. `WEBKDE_RENDER_MODE=cpu` leaves GPU devices
+unmapped, uses Pixman for the nested compositor, and locks Selkies to CPU H.264
+encoding. The configuration wizard selects GPU mode when it finds an accessible
+render node and CPU mode otherwise. CPU mode needs substantially more processor
+time, especially for large multi-screen atlases.
 
 The default reserves eight nested outputs. Set `WEBKDE_MAX_SCREENS` to a value
 from 1 through 8 in `.env`, then deploy to apply the selected maximum.

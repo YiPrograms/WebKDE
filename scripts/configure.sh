@@ -43,7 +43,19 @@ web_user="${WEBKDE_USER:-webkde}"
 password="${WEBKDE_PASSWORD:-${generated_password}}"
 basic_auth="${WEBKDE_BASIC_AUTH:-true}"
 timezone="${WEBKDE_TZ:-${detected_timezone}}"
-dri_node="${WEBKDE_DRI_NODE:-/dev/dri/renderD128}"
+dri_node="${WEBKDE_DRI_NODE:-}"
+if [[ -z "${dri_node}" ]]; then
+  for candidate in /dev/dri/renderD*; do
+    if [[ -r "${candidate}" && -w "${candidate}" ]]; then
+      dri_node="${candidate}"
+      break
+    fi
+  done
+fi
+render_mode="${WEBKDE_RENDER_MODE:-}"
+if [[ -z "${render_mode}" ]]; then
+  if [[ -n "${dri_node}" ]]; then render_mode=gpu; else render_mode=cpu; fi
+fi
 monitor_width="${WEBKDE_MONITOR_WIDTH:-1920}"
 monitor_height="${WEBKDE_MONITOR_HEIGHT:-1080}"
 max_screens="${WEBKDE_MAX_SCREENS:-8}"
@@ -123,8 +135,15 @@ if [[ "${wizard}" == true ]]; then
     basic_auth="${ANSWER}"
     ask "Timezone" "${timezone}"
     timezone="${ANSWER}"
-    ask "DRI render node" "${dri_node}"
-    dri_node="${ANSWER}"
+    ask_boolean "Use GPU acceleration" "$([[ "${render_mode}" == gpu ]] && echo true || echo false)"
+    if [[ "${ANSWER}" == true ]]; then
+      render_mode=gpu
+      ask "DRI render node" "${dri_node:-/dev/dri/renderD128}"
+      dri_node="${ANSWER}"
+    else
+      render_mode=cpu
+      dri_node=""
+    fi
     while :; do
       ask "KWin startup width" "${monitor_width}"
       [[ "${ANSWER}" =~ ^[0-9]+$ ]] && (( ANSWER > 0 )) && { monitor_width="${ANSWER}"; break; }
@@ -186,6 +205,7 @@ WEBKDE_BASIC_AUTH=${basic_auth}
 WEBKDE_SCROLL_SCALE=${WEBKDE_SCROLL_SCALE:-0.25}
 WEBKDE_RUNTIME_DIR=/run/user/${uid}/webkde
 WEBKDE_PULSE_DIR=/run/user/${uid}/pulse
+WEBKDE_RENDER_MODE=${render_mode}
 WEBKDE_DRI_NODE=${dri_node}
 WEBKDE_CONFIG_DIR=${repo_dir}/data/config
 WEBKDE_MONITOR_WIDTH=${monitor_width}

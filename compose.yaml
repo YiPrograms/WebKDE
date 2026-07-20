@@ -18,8 +18,8 @@ services:
       SELKIES_DESKTOP: "false"
       START_DOCKER: "false"
 
-      DRINODE: ${WEBKDE_DRI_NODE:-/dev/dri/renderD128}
-      DRI_NODE: ${WEBKDE_DRI_NODE:-/dev/dri/renderD128}
+      DRINODE: ${WEBKDE_DRI_NODE:-}
+      DRI_NODE: ${WEBKDE_DRI_NODE:-}
 
       CUSTOM_USER: ${WEBKDE_USER:-webkde}
       PASSWORD: ${WEBKDE_PASSWORD:?Run ./scripts/configure.sh before starting WebKDE}
@@ -38,6 +38,7 @@ services:
       # Restrict the allowed encoder so Selkies' browser crash fallback cannot
       # persistently replace working H.264/VA-API with CPU JPEG.
       SELKIES_ENCODER: ${WEBKDE_ENCODER:-x264enc}
+      SELKIES_USE_CPU: ${WEBKDE_USE_CPU:-false}
       PULSE_SERVER: unix:/run/host-pulse/native
 
       # Host applications own the filesystem and command environment. Do not
@@ -55,8 +56,6 @@ services:
       SELKIES_ENABLE_PLAYER4: "false"
       NO_GAMEPAD: "true"
       NO_FULL: "true"
-    devices:
-      - /dev/dri:/dev/dri
     ports:
       - "${WEBKDE_BIND:-127.0.0.1}:${WEBKDE_HTTPS_PORT:-3001}:3001"
     volumes:
