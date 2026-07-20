@@ -930,6 +930,21 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                         except (IndexError, ValueError, OSError) as error:
                             data_logger.warning(f"Invalid WebKDE layout request: {message}: {error}")
 
+                    elif message.startswith("WEBKDE_SCROLL_SCALE,"):
+                        try:
+                            if client_display_id not in (None, "primary"):
+                                raise ValueError("only the primary client may change scroll speed")
+                            scroll_scale = float(message.split(",", 1)[1])
+                            if scroll_scale != scroll_scale or abs(scroll_scale) == float("inf"):
+                                raise ValueError("invalid scroll multiplier")
+                            scroll_scale = max(0.05, min(scroll_scale, 4.0))
+                            os.environ["WEBKDE_SCROLL_SCALE"] = str(scroll_scale)
+                            await websocket.send(f"WEBKDE_SCROLL_SCALE_APPLIED,{scroll_scale:g}")
+                        except (TypeError, ValueError) as error:
+                            data_logger.warning(
+                                f"Invalid WebKDE scroll multiplier request: {message}: {error}"
+                            )
+
                     elif message.startswith("WEBKDE_SCALE,"):
                         try:
                             dpi = int(message.split(",", 1)[1])

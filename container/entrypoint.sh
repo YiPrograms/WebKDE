@@ -8,6 +8,10 @@ case "${max_screens}" in
 esac
 sed -i -E "s/data-max-screens=\"[1-8]\"/data-max-screens=\"${max_screens}\"/" \
   /usr/share/selkies/selkies-dashboard/index.html
+scroll_scale="${WEBKDE_SCROLL_SCALE:-0.25}"
+[[ "${scroll_scale}" =~ ^([0-9]+([.][0-9]*)?|[.][0-9]+)$ ]] || scroll_scale=0.25
+sed -i -E "s/data-scroll-scale=\"[^\"]+\"/data-scroll-scale=\"${scroll_scale}\"/" \
+  /usr/share/selkies/selkies-dashboard/index.html
 
 case "${WEBKDE_BASIC_AUTH:-true}" in
   true)

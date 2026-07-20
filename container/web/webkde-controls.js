@@ -2,10 +2,17 @@
   const configStorageKey = "webkde.virtualScreensV3";
   const profileStorageKey = "webkde.virtualScreenProfilesV1";
   const autoStartStorageKey = "webkde.virtualScreensAutoStartV1";
+  const scrollScaleStorageKey = "webkde.scrollScaleV1";
   const legacyCountKey = "webkde.virtualScreens";
   const legacyArrangementKey = "webkde.screenArrangement";
   const maxScreens = Number(document.currentScript?.dataset.maxScreens || 8);
   const atlasLimit = 4080;
+  const clampScrollScale = value => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? Math.max(.05, Math.min(4, numeric)) : .25;
+  };
+  const defaultScrollScale = clampScrollScale(document.currentScript?.dataset.scrollScale);
+  let scrollScale = clampScrollScale(localStorage.getItem(scrollScaleStorageKey) || defaultScrollScale);
   const nativeSend = WebSocket.prototype.send;
   const nativeDocumentAddEventListener = Document.prototype.addEventListener;
   const observedSockets = new WeakSet();
@@ -260,7 +267,14 @@
     if (observedSockets.has(socket)) return;
     observedSockets.add(socket);
     socket.addEventListener("message", event => {
-      if (typeof event.data !== "string" || !event.data.startsWith("WEBKDE_LAYOUT_V3_APPLIED,")) return;
+      if (typeof event.data !== "string") return;
+      if (event.data.startsWith("WEBKDE_SCROLL_SCALE_APPLIED,")) {
+        scrollScale = clampScrollScale(event.data.split(",")[1]);
+        const input = document.getElementById("webkdeScrollScale");
+        if (input && document.activeElement !== input) input.value = String(scrollScale);
+        return;
+      }
+      if (!event.data.startsWith("WEBKDE_LAYOUT_V3_APPLIED,")) return;
       try {
         appliedLayout = JSON.parse(event.data.slice("WEBKDE_LAYOUT_V3_APPLIED,".length));
         updateControlCrop();
@@ -344,6 +358,12 @@
     } else if (typeof data === "string") data = transformAbsoluteMouse(data);
 
     const result = nativeSend.call(this, data);
+    if (typeof data === "string" && data.startsWith("SETTINGS,")) {
+      setTimeout(() => {
+        if (this.readyState === WebSocket.OPEN)
+          nativeSend.call(this, `WEBKDE_SCROLL_SCALE,${scrollScale}`);
+      }, 0);
+    }
     if (scheduleLayout) setTimeout(() => applyLayout(true, false), 0);
     if (scalingDpi >= 96 && scalingDpi <= 288 && scalingDpi % 24 === 0) {
       setTimeout(() => {
@@ -656,12 +676,30 @@
     autoStartSetting.addEventListener("change", () => {
       localStorage.setItem(autoStartStorageKey, String(autoStartSetting.checked));
     });
+    const scrollItem = document.createElement("div");
+    scrollItem.className = "dev-setting-item";
+    scrollItem.innerHTML = '<label for="webkdeScrollScale">Mouse scroll multiplier</label><div style="display:flex;align-items:center;gap:.5rem"><input type="number" id="webkdeScrollScale" min="0.05" max="4" step="0.05" inputmode="decimal" style="min-width:0;flex:1" aria-describedby="webkdeScrollScaleHelp"><span aria-hidden="true">×</span><button type="button" id="webkdeResetScrollScale" class="resolution-button">Reset</button></div><small id="webkdeScrollScaleHelp">Lower values scroll more slowly. Changes apply immediately.</small>';
+    const scrollInput = scrollItem.querySelector("#webkdeScrollScale");
+    const applyScrollScale = value => {
+      scrollScale = clampScrollScale(value);
+      scrollInput.value = String(scrollScale);
+      localStorage.setItem(scrollScaleStorageKey, String(scrollScale));
+      if (dataSocket?.readyState === WebSocket.OPEN)
+        nativeSend.call(dataSocket, `WEBKDE_SCROLL_SCALE,${scrollScale}`);
+    };
+    scrollInput.value = String(scrollScale);
+    scrollInput.addEventListener("change", () => applyScrollScale(scrollInput.value));
+    scrollItem.querySelector("#webkdeResetScrollScale").addEventListener("click", () => {
+      applyScrollScale(defaultScrollScale);
+      localStorage.removeItem(scrollScaleStorageKey);
+    });
     section.prepend(recoveryItem("Wayland compositor", "webkdeRestartKwin", "Restart KWin",
       "Restart KWin? Wayland applications may close, and Plasma may restart as part of recovery.", "WEBKDE_RESTART_KWIN", [3000, 6000]));
     section.prepend(recoveryItem("Desktop session", "webkdeRestartPlasma", "Restart Plasma",
       "Restart the Plasma desktop? Open applications in this session will be closed.", "WEBKDE_RESTART_PLASMA"));
     section.prepend(recoveryItem("Display recovery", "webkdeResetDisplays", "Reset Displays",
       "Reset the persisted KDE display state and restart KWin? Wayland applications may close.", "WEBKDE_RESET_DISPLAYS", [4000, 7000]));
+    section.prepend(scrollItem);
     section.prepend(item);
     rebuildOpenButtons();
     updateEffectiveResolution();

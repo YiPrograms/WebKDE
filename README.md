@@ -314,16 +314,16 @@ The browser pointer reaches KWin through Pixelflux and Sway as a virtual
 Wayland seat. KDE System Settings therefore reports that no physical mouse is
 connected; this is expected, and its per-device speed controls do not apply.
 
-Wheel deltas are scaled before injection. The default is deliberately slower
-than upstream Selkies:
+Wheel deltas are scaled before injection. Set **Mouse scroll multiplier** in
+the web settings panel; the value is stored by that browser and applies
+immediately. The deployment setting provides its initial default:
 
 ```dotenv
 WEBKDE_SCROLL_SCALE=0.25
 ```
 
-Add or change that value in `.env`, then restart that user's WebKDE instance. A
-smaller value scrolls more slowly; accepted values are clamped between `0.05`
-and `4.0`.
+A smaller value scrolls more slowly; accepted values are clamped between
+`0.05` and `4.0`.
 
 Text clipboard synchronization is relayed through KDE Klipper in both
 directions. Use the normal copy/paste shortcuts in KDE and in the local browser. Grant the site's
