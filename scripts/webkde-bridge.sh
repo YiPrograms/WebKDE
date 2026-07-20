@@ -33,7 +33,34 @@ atomic_write() {
 last_to_kde=''
 last_from_kde=''
 last_layout=''
+output_config="${HOME}/.config/kwinoutputconfig.json"
+last_output_config_signature="$(stat -c '%Y:%s' "${output_config}" 2>/dev/null || true)"
 while :; do
+  if [[ -r "${bridge_dir}/reset-displays" ]]; then
+    reset_request="$(<"${bridge_dir}/reset-displays")"
+    if [[ "${reset_request}" =~ ^[0-9]+$ ]]; then
+      unlink "${bridge_dir}/reset-displays"
+      if systemctl --user stop plasma-kwin_wayland.service; then
+        if [[ -f "${output_config}" ]]; then
+          cp -p "${output_config}" "${output_config}.webkde-backup"
+          rm -f "${output_config}"
+        fi
+        systemctl --user start plasma-kwin_wayland.service
+        for ((attempt=0; attempt<80; attempt++)); do
+          current_kwin_pid="$(systemctl --user show plasma-kwin_wayland.service \
+            --property=MainPID --value 2>/dev/null || true)"
+          if [[ "${current_kwin_pid}" =~ ^[1-9][0-9]*$ ]]; then
+            break
+          fi
+          sleep 0.25
+        done
+        last_layout=''
+        last_output_config_signature=''
+        continue
+      fi
+    fi
+  fi
+
   if [[ -r "${bridge_dir}/restart-kwin" ]]; then
     restart_request="$(<"${bridge_dir}/restart-kwin")"
     if [[ "${restart_request}" =~ ^[0-9]+$ ]]; then
@@ -86,30 +113,54 @@ while :; do
   fi
 
   if [[ -r "${bridge_dir}/layout-request" ]]; then
+    # KScreen's Display Settings can resize nested KWin output windows behind
+    # Sway's back. A fractional output scale plus interactive rearrangement
+    # creates a positive geometry feedback loop. WebKDE owns this topology, so
+    # reapply it whenever KScreen persists a competing configuration.
+    output_config_signature="$(stat -c '%Y:%s' "${output_config}" 2>/dev/null || true)"
+    if [[ -n "${last_layout}" && "${output_config_signature}" != "${last_output_config_signature}" ]]; then
+      last_layout=''
+    fi
     layout="$(<"${bridge_dir}/layout-request")"
     if [[ "${layout}" != "${last_layout}" ]]; then
-      IFS=, read -r count orientation canvas_width canvas_height request_id <<<"${layout}"
-      if [[ "${count}" =~ ^[1-8]$ && "${orientation}" =~ ^(horizontal|vertical)$ ]]; then
+      IFS=, read -r count orientation canvas_width canvas_height request_id grid_positions desktop_positions <<<"${layout}"
+      if [[ "${count}" =~ ^[1-8]$ && "${orientation}" =~ ^(horizontal|vertical|grid)$ ]]; then
         output_args=()
         position_args=()
         offset=0
+        IFS=';' read -r -a grid_position <<<"${grid_positions:-}"
+        IFS=';' read -r -a desktop_position <<<"${desktop_positions:-${grid_positions:-}}"
         for ((index=0; index<WEBKDE_MAX_SCREENS; index++)); do
           if (( index < count )); then
-            output_args+=("output.WL-${index}.enable" "output.WL-${index}.priority.$((index + 1))")
+            output_args+=(
+              "output.WL-${index}.enable"
+              "output.WL-${index}.priority.$((index + 1))"
+              "output.WL-${index}.scale.1"
+            )
             if [[ "${orientation}" == horizontal ]]; then
               position_args+=("output.WL-${index}.position.${offset},0")
               size=$((canvas_width / count + (index < canvas_width % count ? 1 : 0)))
-            else
+              offset=$((offset + size))
+            elif [[ "${orientation}" == vertical ]]; then
               position_args+=("output.WL-${index}.position.0,${offset}")
               size=$((canvas_height / count + (index < canvas_height % count ? 1 : 0)))
+              offset=$((offset + size))
+            elif [[ "${desktop_position[index]:-}" =~ ^([0-9]+):([0-9]+)$ ]]; then
+              position_args+=("output.WL-${index}.position.${BASH_REMATCH[1]},${BASH_REMATCH[2]}")
+            else
+              position_args=()
+              break
             fi
-            offset=$((offset + size))
           else
             output_args+=("output.WL-${index}.disable")
           fi
         done
-        kscreen-doctor "${output_args[@]}" "${position_args[@]}" >/dev/null 2>&1 \
+        (( ${#position_args[@]} == count )) \
+          && kscreen-doctor "${output_args[@]}" "${position_args[@]}" >/dev/null 2>&1 \
           && last_layout="${layout}"
+        if [[ "${last_layout}" == "${layout}" ]]; then
+          last_output_config_signature="$(stat -c '%Y:%s' "${output_config}" 2>/dev/null || true)"
+        fi
       fi
     fi
   fi

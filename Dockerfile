@@ -14,6 +14,8 @@ COPY --chmod=0755 container/patches/selkies-empty-file-transfers.py /tmp/selkies
 COPY --chmod=0755 container/patches/selkies-webkde.py /tmp/selkies-webkde.py
 COPY --chmod=0755 container/patches/selkies-web-ui.py /tmp/selkies-web-ui.py
 COPY --chmod=0644 container/web/webkde-controls.js /usr/share/selkies/selkies-dashboard/webkde-controls.js
+COPY --chmod=0644 container/web/webkde-screen.html /usr/share/selkies/selkies-dashboard/webkde-screen.html
+COPY --chmod=0644 container/web/webkde-screen.js /usr/share/selkies/selkies-dashboard/webkde-screen.js
 COPY --chmod=0755 container/patches/selkies-scroll-scale.py /tmp/selkies-scroll-scale.py
 COPY --chmod=0755 container/entrypoint.sh /webkde-entrypoint.sh
 RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
@@ -26,6 +28,8 @@ RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \
     && /lsiopy/bin/python3 /tmp/selkies-webkde.py \
     && /lsiopy/bin/python3 /tmp/selkies-web-ui.py \
     && /lsiopy/bin/python3 /tmp/selkies-scroll-scale.py \
+    && /lsiopy/bin/python3 -m py_compile \
+      /lsiopy/lib/python*/site-packages/selkies/selkies.py \
     && rm /tmp/selkies-empty-file-transfers.py \
       /tmp/selkies-webkde.py /tmp/selkies-web-ui.py /tmp/selkies-scroll-scale.py
 

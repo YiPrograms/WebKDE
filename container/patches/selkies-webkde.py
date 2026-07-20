@@ -13,7 +13,296 @@ if len(selkies_matches) != 1 or len(input_matches) != 1:
 selkies = selkies_matches[0]
 source = selkies.read_text()
 needle = '                    elif message.startswith("SET_NATIVE_CURSOR_RENDERING,"):'
-handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
+handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V2,"):
+                        try:
+                            payload = json.loads(message.split(",", 1)[1])
+                            count = int(payload["count"])
+                            requested_width = int(payload["width"])
+                            requested_height = int(payload["height"])
+                            max_screens = int(os.environ.get("WEBKDE_MAX_SCREENS", "8"))
+                            if not 1 <= count <= max_screens:
+                                raise ValueError("invalid screen count")
+                            if not 8 <= requested_width <= 16384 or not 2 <= requested_height <= 16384:
+                                raise ValueError("invalid screen dimensions")
+                            if client_display_id not in (None, "primary"):
+                                raise ValueError("only the primary client may change the layout")
+
+                            raw_positions = payload.get("positions")
+                            if not isinstance(raw_positions, list) or len(raw_positions) != count:
+                                raise ValueError("invalid screen arrangement")
+                            position_by_index = {}
+                            occupied = set()
+                            for raw_position in raw_positions:
+                                if not isinstance(raw_position, dict):
+                                    raise ValueError("invalid screen position")
+                                index = raw_position.get("index")
+                                x = raw_position.get("x")
+                                y = raw_position.get("y")
+                                if (not isinstance(index, int) or isinstance(index, bool)
+                                        or not isinstance(x, int) or isinstance(x, bool)
+                                        or not isinstance(y, int) or isinstance(y, bool)
+                                        or not 1 <= index <= count
+                                        or abs(x) >= max_screens or abs(y) >= max_screens):
+                                    raise ValueError("invalid screen position")
+                                if index in position_by_index or (x, y) in occupied:
+                                    raise ValueError("duplicate screen position")
+                                position_by_index[index] = (x, y)
+                                occupied.add((x, y))
+                            if set(position_by_index) != set(range(1, count + 1)):
+                                raise ValueError("missing screen position")
+                            min_x = min(x for x, _ in occupied)
+                            min_y = min(y for _, y in occupied)
+                            position_by_index = {
+                                index: (x - min_x, y - min_y)
+                                for index, (x, y) in position_by_index.items()
+                            }
+                            occupied = set(position_by_index.values())
+                            connected = {position_by_index[1]}
+                            frontier = [position_by_index[1]]
+                            while frontier:
+                                x, y = frontier.pop()
+                                for neighbor in ((x - 1, y), (x + 1, y),
+                                                 (x, y - 1), (x, y + 1)):
+                                    if neighbor in occupied and neighbor not in connected:
+                                        connected.add(neighbor)
+                                        frontier.append(neighbor)
+                            if connected != occupied:
+                                raise ValueError("screen arrangement must be edge-connected")
+
+                            atlas_limit = 4080
+                            best = None
+                            for columns in range(1, count + 1):
+                                rows = (count + columns - 1) // columns
+                                scale = min(
+                                    1.0,
+                                    atlas_limit / (columns * requested_width),
+                                    atlas_limit / (rows * requested_height),
+                                )
+                                empty = columns * rows - count
+                                preferred = columns if requested_width >= requested_height else -columns
+                                candidate = (scale, -empty, preferred, columns, rows)
+                                if best is None or candidate[:3] > best[:3]:
+                                    best = candidate
+
+                            _, _, _, columns, rows = best
+                            scale = best[0]
+                            screen_width = max(8, int(requested_width * scale) // 8 * 8)
+                            screen_height = max(2, int(requested_height * scale) // 2 * 2)
+                            atlas_width = columns * screen_width
+                            atlas_height = rows * screen_height
+                            physical_rects = [
+                                {
+                                    "index": index + 1,
+                                    "x": (index % columns) * screen_width,
+                                    "y": (index // columns) * screen_height,
+                                    "width": screen_width,
+                                    "height": screen_height,
+                                }
+                                for index in range(count)
+                            ]
+
+                            previous_task = getattr(self, "webkde_layout_task", None)
+                            if previous_task and not previous_task.done():
+                                previous_task.cancel()
+
+                            client_info = self.display_clients.get("primary", {})
+                            current_resolution = (
+                                int(client_info.get("width") or 0),
+                                int(client_info.get("height") or 0),
+                            )
+                            if current_resolution != (atlas_width, atlas_height):
+                                await on_resize_handler(
+                                    f"{atlas_width}x{atlas_height}", self.app, self, "primary"
+                                )
+
+                            desktop_scale = float(getattr(self, "webkde_scale", 1.0))
+                            logical_screen_width = max(1, round(screen_width / desktop_scale))
+                            logical_screen_height = max(1, round(screen_height / desktop_scale))
+                            logical_width = columns * logical_screen_width
+                            logical_height = rows * logical_screen_height
+                            logical_rects = [
+                                {
+                                    "index": rect["index"],
+                                    "x": (rect["index"] - 1) % columns * logical_screen_width,
+                                    "y": (rect["index"] - 1) // columns * logical_screen_height,
+                                    "width": logical_screen_width,
+                                    "height": logical_screen_height,
+                                }
+                                for rect in physical_rects
+                            ]
+                            desktop_rects = [
+                                {
+                                    "index": index,
+                                    "x": position_by_index[index][0] * logical_screen_width,
+                                    "y": position_by_index[index][1] * logical_screen_height,
+                                    "width": logical_screen_width,
+                                    "height": logical_screen_height,
+                                }
+                                for index in range(1, count + 1)
+                            ]
+                            applied_payload = {
+                                "mode": "per-tab",
+                                "count": count,
+                                "columns": columns,
+                                "rows": rows,
+                                "requestedWidth": requested_width,
+                                "requestedHeight": requested_height,
+                                "screenWidth": screen_width,
+                                "screenHeight": screen_height,
+                                "logicalScreenWidth": logical_screen_width,
+                                "logicalScreenHeight": logical_screen_height,
+                                "desktopScale": desktop_scale,
+                                "atlasWidth": atlas_width,
+                                "atlasHeight": atlas_height,
+                                "screens": physical_rects,
+                                "desktopScreens": desktop_rects,
+                            }
+
+                            async def apply_webkde_grid(
+                                layout_count=count,
+                                layout_max_screens=max_screens,
+                                layout_width=logical_width,
+                                layout_height=logical_height,
+                                layout_rects=logical_rects,
+                                layout_desktop_rects=desktop_rects,
+                                layout_payload=applied_payload,
+                                layout_message=message,
+                            ):
+                                try:
+                                    await asyncio.sleep(0.3)
+                                    request_dir = pathlib.Path(os.environ.get(
+                                        "WEBKDE_BRIDGE_DIR", "/config/.XDG/webkde-bridge"
+                                    ))
+                                    request_dir.mkdir(parents=True, exist_ok=True)
+                                    request_id = time.monotonic_ns()
+                                    positions = ";".join(
+                                        f'{rect["x"]}:{rect["y"]}' for rect in layout_rects
+                                    )
+                                    desktop_positions = ";".join(
+                                        f'{rect["x"]}:{rect["y"]}'
+                                        for rect in layout_desktop_rects
+                                    )
+                                    request = (
+                                        f"{layout_count},grid,{layout_width},{layout_height},"
+                                        f"{request_id},{positions},{desktop_positions}\\n"
+                                    )
+                                    request_path = request_dir / "layout-request"
+                                    temporary = request_dir / "layout-request.tmp"
+
+                                    # A clean nested KWin session initially creates only
+                                    # WL-0's host window. Ask KScreen to enable all requested
+                                    # outputs first; their Sway nodes must exist before they
+                                    # can be resized into the capture atlas.
+                                    preflight_request = (
+                                        f"{layout_count},grid,{layout_width},{layout_height},"
+                                        f"{request_id}-preflight,{positions},{desktop_positions}\\n"
+                                    )
+                                    temporary.write_text(preflight_request)
+                                    temporary.replace(request_path)
+                                    await asyncio.sleep(0.35)
+
+                                    sockets = list(pathlib.Path("/config/.XDG").glob(
+                                        "sway-ipc.*.sock"
+                                    ))
+                                    if not sockets:
+                                        raise OSError("Sway IPC socket is unavailable")
+                                    sway_socket = max(sockets, key=lambda path: path.stat().st_mtime)
+
+                                    async def run_sway(command, ignore_missing=False):
+                                        process = await asyncio.create_subprocess_exec(
+                                            "swaymsg", "--socket", str(sway_socket), command,
+                                            stdout=asyncio.subprocess.PIPE,
+                                            stderr=asyncio.subprocess.PIPE,
+                                        )
+                                        stdout, stderr = await process.communicate()
+                                        try:
+                                            replies = json.loads(stdout.decode())
+                                        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                                            detail = (stderr or stdout).decode(
+                                                errors="replace"
+                                            ).strip()
+                                            raise OSError(
+                                                detail or f"invalid swaymsg response: {error}"
+                                            )
+                                        failures = [
+                                            reply.get("error", "unknown Sway error")
+                                            for reply in replies if not reply.get("success")
+                                        ]
+                                        if failures:
+                                            if ignore_missing and all(
+                                                error == "No matching node." for error in failures
+                                            ):
+                                                return
+                                            raise OSError("; ".join(failures))
+                                        if process.returncode:
+                                            detail = stderr.decode(errors="replace").strip()
+                                            raise OSError(detail or "swaymsg failed")
+
+                                    commands = []
+                                    for rect in layout_rects:
+                                        index = rect["index"] - 1
+                                        criteria = f'[title=".*WL-{index}.*"]'
+                                        commands.append(
+                                            f"{criteria} move workspace current, floating enable, "
+                                            f'resize set width {rect["width"]} px height {rect["height"]} px, '
+                                            f'move position {rect["x"]} px {rect["y"]} px'
+                                        )
+                                    for index in range(layout_count, layout_max_screens):
+                                        await run_sway(
+                                            f'[title=".*WL-{index}.*"] move scratchpad',
+                                            ignore_missing=True,
+                                        )
+                                    for layout_pass in range(2):
+                                        for attempt in range(40):
+                                            try:
+                                                for command in commands:
+                                                    await run_sway(command)
+                                                break
+                                            except OSError as error:
+                                                if "No matching node." not in str(error) or attempt == 39:
+                                                    raise
+                                                await asyncio.sleep(0.25)
+                                        if layout_pass == 0:
+                                            await asyncio.sleep(0.5)
+
+                                    # KWin derives nested output modes from its host-window
+                                    # configure size. Publish the KScreen request only after
+                                    # every host window has reached its final geometry.
+                                    temporary.write_text(request)
+                                    temporary.replace(request_path)
+                                    await asyncio.sleep(0.35)
+
+                                    try:
+                                        await websocket.send(
+                                            "WEBKDE_LAYOUT_V2_APPLIED," + json.dumps(
+                                                layout_payload, separators=(",", ":")
+                                            )
+                                        )
+                                    except websockets.exceptions.ConnectionClosed:
+                                        data_logger.debug(
+                                            "WebKDE grid client disconnected before acknowledgement"
+                                        )
+
+                                    # KScreen can change a nested KWin window's minimum size
+                                    # while Display Settings is open. Keep the Sway-side
+                                    # geometry authoritative; after the host bridge restores
+                                    # scale 1 this also shrinks any transient enlargement.
+                                    while request_path.read_text() == request:
+                                        await asyncio.sleep(0.5)
+                                        for command in commands:
+                                            await run_sway(command, ignore_missing=True)
+                                except asyncio.CancelledError:
+                                    data_logger.debug("Superseded WebKDE grid request")
+                                except (OSError, ValueError) as error:
+                                    data_logger.warning(
+                                        f"Invalid WebKDE grid request: {layout_message}: {error}"
+                                    )
+
+                            self.webkde_layout_task = asyncio.create_task(apply_webkde_grid())
+                        except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as error:
+                            data_logger.warning(f"Invalid WebKDE grid request: {message}: {error}")
+
+                    elif message.startswith("WEBKDE_LAYOUT,"):
                         try:
                             parts = message.split(",")
                             count = int(parts[1])
@@ -22,11 +311,11 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                                 raise ValueError("invalid layout")
 
                             client_info = self.display_clients.get(client_display_id or "primary", {})
-                            canvas_width = int(client_info.get("width") or parts[3])
-                            canvas_height = int(client_info.get("height") or parts[4])
+                            physical_canvas_width = int(client_info.get("width") or parts[3])
+                            physical_canvas_height = int(client_info.get("height") or parts[4])
                             desktop_scale = float(getattr(self, "webkde_scale", 1.0))
-                            canvas_width = max(count, round(canvas_width / desktop_scale))
-                            canvas_height = max(1, round(canvas_height / desktop_scale))
+                            canvas_width = max(count, round(physical_canvas_width / desktop_scale))
+                            canvas_height = max(1, round(physical_canvas_height / desktop_scale))
                             orientation = "horizontal" if canvas_width >= canvas_height else "vertical"
 
                             previous_task = getattr(self, "webkde_layout_task", None)
@@ -142,9 +431,21 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                                         if layout_pass == 0:
                                             await asyncio.sleep(0.5)
 
-                                    await websocket.send(
-                                        f"WEBKDE_LAYOUT_APPLIED,{layout_count},{layout_orientation}"
-                                    )
+                                    try:
+                                        await websocket.send(
+                                            f"WEBKDE_LAYOUT_APPLIED,{layout_count},{layout_orientation}"
+                                        )
+                                    except websockets.exceptions.ConnectionClosed:
+                                        data_logger.debug(
+                                            "WebKDE layout client disconnected before acknowledgement"
+                                        )
+
+                                    # Do not allow KScreen's live preview to resize these
+                                    # nested output windows behind the stream layout.
+                                    while request_path.read_text() == request:
+                                        await asyncio.sleep(0.5)
+                                        for command in active_commands:
+                                            await run_sway(command, ignore_missing=True)
                                 except asyncio.CancelledError:
                                     data_logger.debug("Superseded WebKDE layout request")
                                 except (OSError, ValueError) as error:
@@ -164,9 +465,14 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                             if dpi < 96 or dpi > 288 or dpi % 24:
                                 raise ValueError("scale DPI must be from 96 through 288 in steps of 24")
                             scale = dpi / 96.0
-                            sockets = list(pathlib.Path("/config/.XDG").glob(
-                                "sway-ipc.*.sock"
-                            ))
+                            sockets = []
+                            for attempt in range(20):
+                                sockets = list(pathlib.Path("/config/.XDG").glob(
+                                    "sway-ipc.*.sock"
+                                ))
+                                if sockets:
+                                    break
+                                await asyncio.sleep(0.25)
                             if not sockets:
                                 raise OSError("Sway IPC socket is unavailable")
                             sway_socket = max(sockets, key=lambda path: path.stat().st_mtime)
@@ -191,6 +497,20 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT,"):
                             await websocket.send(f"WEBKDE_SCALE_APPLIED,{dpi}")
                         except (IndexError, ValueError, OSError, json.JSONDecodeError) as error:
                             data_logger.warning(f"Invalid WebKDE scale request: {message}: {error}")
+
+                    elif message == "WEBKDE_RESET_DISPLAYS":
+                        try:
+                            request_dir = pathlib.Path(os.environ.get(
+                                "WEBKDE_BRIDGE_DIR", "/config/.XDG/webkde-bridge"
+                            ))
+                            request_dir.mkdir(parents=True, exist_ok=True)
+                            request = f"{time.monotonic_ns()}\\n"
+                            temporary = request_dir / "reset-displays.tmp"
+                            temporary.write_text(request)
+                            temporary.replace(request_dir / "reset-displays")
+                            await websocket.send("WEBKDE_RESET_DISPLAYS_ACCEPTED")
+                        except OSError as error:
+                            data_logger.warning(f"Could not request a display reset: {error}")
 
                     elif message in ("WEBKDE_RESTART_PLASMA", "WEBKDE_RESTART_KWIN"):
                         try:

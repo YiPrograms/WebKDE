@@ -35,6 +35,7 @@ WEBKDE_CONFIG_DIR=/var/lib/webkde/config
 WEBKDE_MONITOR_WIDTH=1920
 WEBKDE_MONITOR_HEIGHT=1080
 WEBKDE_MAX_SCREENS=8
+WEBKDE_ENCODER=x264enc
 SELKIES_BASE_IMAGE=ghcr.io/linuxserver/baseimage-selkies:debiantrixie@sha256:ac7fd6d182238b4a99e66554c5e75be48a714e2a0c9da81bd18e171ff9ba3dd5
 EOF
 chmod 0600 "${env_file}"

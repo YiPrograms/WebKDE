@@ -36,6 +36,9 @@ services:
       SELKIES_AUDIO_ENABLED: "true"
       SELKIES_MICROPHONE_ENABLED: "false"
       SELKIES_AUDIO_DEVICE_NAME: output.monitor
+      # Restrict the allowed encoder so Selkies' browser crash fallback cannot
+      # persistently replace working H.264/VA-API with CPU JPEG.
+      SELKIES_ENCODER: ${WEBKDE_ENCODER:-x264enc}
       PULSE_SERVER: unix:/run/host-pulse/native
 
       # Host applications own the filesystem and command environment. Do not

@@ -99,17 +99,67 @@ Then open `https://127.0.0.1:3001/` on the client.
 
 Open Selkies' **Screen Settings** section and use the **Virtual screens**
 selector. The choice is stored by that browser. Counts from 1 through 8 are
-available by default. The canvas is divided along its longer dimension, so a
-1000×300 canvas with two screens becomes two 500×300 KDE displays. Changing the browser size
-continues to resize the stream normally; crossing between wide and tall
-automatically changes the split direction. No service or desktop restart is
-performed.
+available by default. The current page is always the Screen 1 control window
+and an **Open Screen N** button is shown for every other enabled output. Each
+button opens a satellite tab. Only the control window receives and decodes the
+Selkies stream; satellites receive cropped frames from that decoded canvas.
+Allow pop-ups for the WebKDE origin when the browser asks.
+
+Use **Screen arrangement** to choose an equal-tile Row, Column, or compact Grid.
+Select a numbered tile and move it with the arrow controls; moving into another
+tile swaps them. Moving into an empty cell creates a new row or column. Drafts
+may be edited freely, but **Apply** remains disabled until every screen is
+edge-connected. **Reset** discards the draft. Screen 1 remains the primary
+output wherever its tile is placed. Applying stores the topology in the browser
+without restarting Plasma.
+
+With Selkies **Manual Resolution** enabled, its manual width and height define
+the requested size of every KDE output. With it disabled, every output follows
+the Screen 1 browser viewport. The shared 4080×4080 stream limit can still
+reduce all outputs by the same factor when several screens are enabled.
+
+The control window must remain open while satellite windows are in use. Closing
+a satellite does not disable its KDE output or move applications. In Per-tab
+mode, the Screen 1 browser size is the requested size of every KDE output.
+Each browser tab uses independent absolute mouse input. WebKDE does not lock,
+warp, or hand off the browser pointer at screen edges. Browser security prevents
+a reliable held-button drag from continuing across separate tabs, so release
+the window on one screen and continue moving it from the destination tab.
+Satellite fullscreen uses the same browser keyboard lock as the control window,
+so Chromium's press-and-hold Escape gesture exits fullscreen in either window.
+WebKDE packs the output frames into the most space-efficient grid that fits the
+stream's 4080×4080 limit and reports the effective per-screen resolution in
+Screen Settings. Large screen counts may therefore reduce all outputs by the
+same factor. This internal capture packing is independent of the desktop
+arrangement selected in the UI. Opening or closing Selkies' settings sidebar
+does not resize KDE outputs.
+
+At UI scales above 100%, Screen Settings reports both coordinate spaces. KWin's
+nested output backend reports the streamed pixel mode at 100%, while Selkies'
+outer scale provides the smaller effective UI size. WebKDE positions outputs
+using that effective size so the desktop has no gaps. KDE Display Configuration
+may therefore draw the nested output rectangles as overlapping because it
+cannot represent the outer scale; that visualization is a backend limitation,
+not the actual usable desktop topology.
 
 Selkies' **UI Scaling** setting controls the global KDE desktop scale. WebKDE
 applies it to the intermediate Sway output and then partitions the remaining
 logical canvas between the virtual screens. KWin's nested Wayland backend
-ignores per-output scale changes made in KDE Display Configuration, so use the
-Selkies setting for this deployment.
+ignores per-output scale changes made in KDE Display Configuration and forces
+its nested outputs back to scale 1, so use the Selkies setting for this
+deployment.
+
+WebKDE also owns the virtual-output arrangement. Do not change scale or use
+**Rearrange Displays** in KDE Display Configuration: its live preview can resize
+the nested KWin host windows and create a geometry feedback loop. The bridge
+restores managed scale and positions, and the stream-side watchdog restores the
+host-window sizes if a preview attempts to change them. Choose the screen count
+and arrangement in Selkies instead.
+
+`WEBKDE_ENCODER=x264enc` is the deployment default. It restricts Selkies to the
+H.264 encoder so its browser-side crash recovery cannot persistently fall back
+to CPU JPEG after repeated service or compositor restarts. Change this variable
+only when a target GPU requires another Selkies encoder.
 
 The installed default reserves eight nested outputs. Set
 `WEBKDE_MAX_SCREENS` to a value from 1 through 8 before installation if a
@@ -121,6 +171,12 @@ session's applications. Restarting KWin interrupts the Wayland display-server
 connection, so Wayland applications can also close; on some Plasma versions it
 may result in a full session restart. Neither action restarts the Selkies
 container.
+
+**Reset Displays** is the recovery step for corrupted output dimensions or
+positions. It stops KWin, saves the previous `kwinoutputconfig.json` as
+`kwinoutputconfig.json.webkde-backup`, clears the persisted output state,
+restarts KWin, and reapplies the current WebKDE layout. It asks for confirmation
+because Wayland applications may close.
 
 `make status` (or `/opt/webkde/scripts/display-mode.sh status`) remains
 available for diagnostics. The old `make single` and `make dual` controls were
