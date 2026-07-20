@@ -299,8 +299,8 @@ The wallet service derives the same salted PBKDF2 key as `pam_kwallet`, opens
 the wallet before applications request secrets, and closes all wallets when the
 WebKDE session stops. Brave, Chromium, QtKeychain applications, and the Secret
 Service portal then use the existing wallet entries. Run
-`./scripts/configure.sh` to replace the encrypted credential after changing the
-wallet password, followed by `./scripts/deploy.sh`.
+`./scripts/configure.sh --wallet` to replace and immediately verify the
+encrypted credential after changing the wallet password.
 
 ## Audio
 

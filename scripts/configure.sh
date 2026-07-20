@@ -4,14 +4,19 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${repo_dir}/.env"
 wizard=false
+wallet_only=false
 if [[ "${1:-}" == --wizard ]]; then
   wizard=true
+  shift
+elif [[ "${1:-}" == --wallet ]]; then
+  wizard=true
+  wallet_only=true
   shift
 elif [[ -t 0 && -t 1 ]]; then
   wizard=true
 fi
-if (( $# > 1 )); then
-  echo "usage: $0 [--wizard] [https-port]" >&2
+if (( $# > 1 )) || [[ "${wallet_only}" == true && $# -gt 0 ]]; then
+  echo "usage: $0 [--wizard [https-port] | --wallet | https-port]" >&2
   exit 2
 fi
 port_argument="${1:-}"
@@ -88,50 +93,56 @@ if [[ "${wizard}" == true ]]; then
     exit 1
   fi
   exec 3<>/dev/tty
-  printf '\nWebKDE configuration\n\n' >&3
+  if [[ "${wallet_only}" == true ]]; then
+    printf '\nWebKDE KWallet configuration\n\n' >&3
+  else
+    printf '\nWebKDE configuration\n\n' >&3
+  fi
 
-  ask "HTTPS bind address" "${bind}"
-  bind="${ANSWER}"
-  while :; do
-    ask "HTTPS port" "${port}"
-    if [[ "${ANSWER}" =~ ^[0-9]+$ ]] && (( ANSWER >= 1 && ANSWER <= 65535 )); then port="${ANSWER}"; break; fi
-    printf 'Enter a port from 1 through 65535.\n' >&3
-  done
-  while :; do
-    ask "Web username" "${web_user}"
-    if [[ "${ANSWER}" =~ ^[A-Za-z0-9._-]+$ ]]; then web_user="${ANSWER}"; break; fi
-    printf 'Use letters, numbers, periods, underscores, or hyphens.\n' >&3
-  done
-  ask_secret "$([[ -n "${WEBKDE_PASSWORD:-}" ]] && echo true || echo false)"
-  if [[ -n "${ANSWER}" ]]; then password="${ANSWER}"; fi
-  while [[ ! "${password}" =~ ^[A-Za-z0-9._~!@%+=:,/-]+$ ]]; do
-    printf 'Use a password without spaces, quotes, dollar signs, or hash signs.\n' >&3
-    ask_secret false
-    [[ -n "${ANSWER}" ]] && password="${ANSWER}"
-  done
-  ask_boolean "Enable built-in basic authentication" "${basic_auth}"
-  basic_auth="${ANSWER}"
-  ask "Timezone" "${timezone}"
-  timezone="${ANSWER}"
-  ask "DRI render node" "${dri_node}"
-  dri_node="${ANSWER}"
-  while :; do
-    ask "KWin startup width" "${monitor_width}"
-    [[ "${ANSWER}" =~ ^[0-9]+$ ]] && (( ANSWER > 0 )) && { monitor_width="${ANSWER}"; break; }
-    printf 'Enter a positive integer.\n' >&3
-  done
-  while :; do
-    ask "KWin startup height" "${monitor_height}"
-    [[ "${ANSWER}" =~ ^[0-9]+$ ]] && (( ANSWER > 0 )) && { monitor_height="${ANSWER}"; break; }
-    printf 'Enter a positive integer.\n' >&3
-  done
-  while :; do
-    ask "Maximum virtual screens" "${max_screens}"
-    [[ "${ANSWER}" =~ ^[1-8]$ ]] && { max_screens="${ANSWER}"; break; }
-    printf 'Enter a value from 1 through 8.\n' >&3
-  done
-  ask_boolean "Build the container from this checkout" "${build_local}"
-  build_local="${ANSWER}"
+  if [[ "${wallet_only}" == false ]]; then
+    ask "HTTPS bind address" "${bind}"
+    bind="${ANSWER}"
+    while :; do
+      ask "HTTPS port" "${port}"
+      if [[ "${ANSWER}" =~ ^[0-9]+$ ]] && (( ANSWER >= 1 && ANSWER <= 65535 )); then port="${ANSWER}"; break; fi
+      printf 'Enter a port from 1 through 65535.\n' >&3
+    done
+    while :; do
+      ask "Web username" "${web_user}"
+      if [[ "${ANSWER}" =~ ^[A-Za-z0-9._-]+$ ]]; then web_user="${ANSWER}"; break; fi
+      printf 'Use letters, numbers, periods, underscores, or hyphens.\n' >&3
+    done
+    ask_secret "$([[ -n "${WEBKDE_PASSWORD:-}" ]] && echo true || echo false)"
+    if [[ -n "${ANSWER}" ]]; then password="${ANSWER}"; fi
+    while [[ ! "${password}" =~ ^[A-Za-z0-9._~!@%+=:,/-]+$ ]]; do
+      printf 'Use a password without spaces, quotes, dollar signs, or hash signs.\n' >&3
+      ask_secret false
+      [[ -n "${ANSWER}" ]] && password="${ANSWER}"
+    done
+    ask_boolean "Enable built-in basic authentication" "${basic_auth}"
+    basic_auth="${ANSWER}"
+    ask "Timezone" "${timezone}"
+    timezone="${ANSWER}"
+    ask "DRI render node" "${dri_node}"
+    dri_node="${ANSWER}"
+    while :; do
+      ask "KWin startup width" "${monitor_width}"
+      [[ "${ANSWER}" =~ ^[0-9]+$ ]] && (( ANSWER > 0 )) && { monitor_width="${ANSWER}"; break; }
+      printf 'Enter a positive integer.\n' >&3
+    done
+    while :; do
+      ask "KWin startup height" "${monitor_height}"
+      [[ "${ANSWER}" =~ ^[0-9]+$ ]] && (( ANSWER > 0 )) && { monitor_height="${ANSWER}"; break; }
+      printf 'Enter a positive integer.\n' >&3
+    done
+    while :; do
+      ask "Maximum virtual screens" "${max_screens}"
+      [[ "${ANSWER}" =~ ^[1-8]$ ]] && { max_screens="${ANSWER}"; break; }
+      printf 'Enter a value from 1 through 8.\n' >&3
+    done
+    ask_boolean "Build the container from this checkout" "${build_local}"
+    build_local="${ANSWER}"
+  fi
   ask_boolean "Unlock KWallet when the WebKDE session starts" true
   wallet_unlock="${ANSWER}"
   if [[ "${wallet_unlock}" == true ]]; then
@@ -156,7 +167,8 @@ else
 fi
 
 umask 077
-cat >"${env_file}" <<EOF
+if [[ "${wallet_only}" == false ]]; then
+  cat >"${env_file}" <<EOF
 WEBKDE_HOST_USER=${username}
 WEBKDE_INSTANCE=${username}
 WEBKDE_PUID=${uid}
@@ -182,7 +194,8 @@ WEBKDE_MAX_SCREENS=${max_screens}
 WEBKDE_ENCODER=${WEBKDE_ENCODER:-x264enc}
 SELKIES_BASE_IMAGE=${SELKIES_BASE_IMAGE:-ghcr.io/linuxserver/baseimage-selkies:debiantrixie@sha256:ac7fd6d182238b4a99e66554c5e75be48a714e2a0c9da81bd18e171ff9ba3dd5}
 EOF
-chmod 0600 "${env_file}"
+  chmod 0600 "${env_file}"
+fi
 
 if [[ "${wizard}" == true ]]; then
   if [[ "${wallet_unlock}" == true && -n "${wallet_password}" ]]; then
@@ -204,5 +217,21 @@ if [[ "${wizard}" == true ]]; then
   fi
 fi
 
-echo "Created ${env_file} (mode 0600)."
-echo "Run ./scripts/doctor.sh, then ./scripts/deploy.sh."
+if [[ "${wallet_only}" == true ]]; then
+  wallet_unit="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user/webkde-wallet.service"
+  if [[ -L "${wallet_unit}" \
+      && "$(readlink -f -- "${wallet_unit}")" == "${repo_dir}/systemd/generated/webkde-wallet.service" ]]; then
+    if [[ "${wallet_unlock}" == true ]]; then
+      systemctl --user restart webkde-wallet.service
+      echo "KWallet automatic unlock is configured and verified."
+    else
+      systemctl --user stop webkde-wallet.service 2>/dev/null || true
+      echo "KWallet automatic unlock is disabled."
+    fi
+  else
+    echo "KWallet configuration saved. Run ./scripts/deploy.sh to install the wallet service."
+  fi
+else
+  echo "Created ${env_file} (mode 0600)."
+  echo "Run ./scripts/doctor.sh, then ./scripts/deploy.sh."
+fi
