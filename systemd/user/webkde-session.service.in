@@ -12,6 +12,7 @@ ExecStart=@APP_DIR@/scripts/start-plasma.sh
 ExecStartPost=@APP_DIR@/scripts/initial-display-mode.sh
 ExecStartPost=@SYSTEMCTL@ --user start webkde-bridge.service
 ExecStartPost=@SYSTEMCTL@ --user start webkde-inhibit.service
+ExecStartPost=-@SYSTEMCTL@ --user start webkde-wallet.service
 # startplasma exits cleanly when its outer Wayland connection disappears.
 # Restart even after that clean exit so a transient container/Sway restart
 # cannot leave Selkies streaming an empty black compositor.

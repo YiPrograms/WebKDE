@@ -44,6 +44,9 @@ monitor_height="${WEBKDE_MONITOR_HEIGHT:-1080}"
 max_screens="${WEBKDE_MAX_SCREENS:-8}"
 build_local="${WEBKDE_BUILD_LOCAL:-false}"
 image="${WEBKDE_IMAGE:-ghcr.io/yiprograms/webkde:latest}"
+wallet_credential="${repo_dir}/data/credentials/kwallet-password.cred"
+wallet_unlock=true
+wallet_password=""
 
 ask() {
   local label="$1" default="$2"
@@ -129,6 +132,21 @@ if [[ "${wizard}" == true ]]; then
   done
   ask_boolean "Build the container from this checkout" "${build_local}"
   build_local="${ANSWER}"
+  ask_boolean "Unlock KWallet when the WebKDE session starts" true
+  wallet_unlock="${ANSWER}"
+  if [[ "${wallet_unlock}" == true ]]; then
+    while :; do
+      if [[ -f "${wallet_credential}" ]]; then
+        printf 'KWallet password [press Enter to keep encrypted credential]: ' >&3
+      else
+        printf 'KWallet password (usually your Linux login password): ' >&3
+      fi
+      IFS= read -r -s wallet_password <&3
+      printf '\n' >&3
+      if [[ -n "${wallet_password}" || -f "${wallet_credential}" ]]; then break; fi
+      printf 'Enter the password used by kdewallet.\n' >&3
+    done
+  fi
   exec 3>&-
 else
   [[ "${port}" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || {
@@ -165,6 +183,26 @@ WEBKDE_ENCODER=${WEBKDE_ENCODER:-x264enc}
 SELKIES_BASE_IMAGE=${SELKIES_BASE_IMAGE:-ghcr.io/linuxserver/baseimage-selkies:debiantrixie@sha256:ac7fd6d182238b4a99e66554c5e75be48a714e2a0c9da81bd18e171ff9ba3dd5}
 EOF
 chmod 0600 "${env_file}"
+
+if [[ "${wizard}" == true ]]; then
+  if [[ "${wallet_unlock}" == true && -n "${wallet_password}" ]]; then
+    install -d -m 0700 "$(dirname -- "${wallet_credential}")"
+    plaintext="$(mktemp "${XDG_RUNTIME_DIR:-/run/user/${uid}}/webkde-wallet.XXXXXX")"
+    encrypted="${wallet_credential}.tmp.$$"
+    trap 'unlink "${plaintext}" "${encrypted}" 2>/dev/null || true' EXIT
+    chmod 0600 "${plaintext}"
+    printf '%s' "${wallet_password}" >"${plaintext}"
+    wallet_password=""
+    systemd-creds encrypt --user --name=kwallet-password \
+      "${plaintext}" "${encrypted}"
+    mv -f "${encrypted}" "${wallet_credential}"
+    chmod 0600 "${wallet_credential}"
+    unlink "${plaintext}"
+    trap - EXIT
+  elif [[ "${wallet_unlock}" == false ]]; then
+    unlink "${wallet_credential}" 2>/dev/null || true
+  fi
+fi
 
 echo "Created ${env_file} (mode 0600)."
 echo "Run ./scripts/doctor.sh, then ./scripts/deploy.sh."

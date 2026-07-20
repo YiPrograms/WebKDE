@@ -14,7 +14,7 @@ ok() { printf 'OK   %s\n' "$*"; }
 warn() { printf 'WARN %s\n' "$*"; warnings=$((warnings + 1)); }
 fail() { printf 'FAIL %s\n' "$*"; failures=$((failures + 1)); }
 
-for command in docker kwin_wayland_wrapper startplasma-wayland kscreen-doctor openssl pactl loginctl systemctl systemd-inhibit kde-inhibit; do
+for command in docker kwin_wayland_wrapper startplasma-wayland kscreen-doctor openssl pactl loginctl systemctl systemd-creds busctl python3 systemd-inhibit kde-inhibit; do
   if command -v "${command}" >/dev/null 2>&1; then
     ok "command: ${command}"
   else
@@ -55,6 +55,8 @@ else
 fi
 
 if [[ -r "${env_file}" ]]; then ok "configuration is readable: ${env_file}"; else warn "configuration is absent; run ./scripts/configure.sh"; fi
+wallet_credential="${repo_dir}/data/credentials/kwallet-password.cred"
+if [[ -r "${wallet_credential}" ]]; then ok "encrypted KWallet credential is configured"; else warn "KWallet automatic unlock is not configured; run ./scripts/configure.sh"; fi
 if systemctl --user list-unit-files webkde.service --no-legend 2>/dev/null | grep -q '^webkde.service'; then
   ok "user-local WebKDE service is installed"
 else

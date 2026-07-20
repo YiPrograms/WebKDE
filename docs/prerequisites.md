@@ -13,6 +13,7 @@ The host needs:
 - a systemd-based Linux distribution and a non-root desktop user;
 - Docker Engine using the system daemon, plus Docker Compose v2;
 - `curl` and `tar` for archive installation;
+- Python 3, `busctl`, and `systemd-creds` for KWallet session integration;
 - Docker API access for the desktop user (normally membership in `docker`);
 - Plasma 6, `kwin_wayland_wrapper`, `startplasma-wayland`, KScreen, and
   XWayland, including the `kde-inhibit` and Qt 6 `qdbus` utilities;

@@ -1,0 +1,13 @@
+[Unit]
+Description=Unlock KWallet for the WebKDE Plasma session
+PartOf=webkde-session.service
+After=plasma-kwallet-pam.service plasma-kded6.service
+ConditionPathExists=@WALLET_CREDENTIAL@
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+LoadCredentialEncrypted=kwallet-password:@WALLET_CREDENTIAL@
+ExecStart=@APP_DIR@/scripts/wallet-session.py unlock
+ExecStop=@APP_DIR@/scripts/wallet-session.py lock
+TimeoutStartSec=2min

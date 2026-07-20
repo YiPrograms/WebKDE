@@ -32,7 +32,7 @@ remove_link() {
   fi
 }
 
-for unit in webkde.service webkde-session.service webkde-inhibit.service webkde-bridge.service; do
+for unit in webkde.service webkde-session.service webkde-inhibit.service webkde-bridge.service webkde-wallet.service; do
   remove_link "${user_unit_dir}/${unit}" "${generated_dir}/${unit}"
 done
 remove_link \

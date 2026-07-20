@@ -71,9 +71,9 @@ The bootstrap downloads the source archive into `~/.local/share/webkde`, opens
 the configuration wizard, pulls `ghcr.io/yiprograms/webkde:latest`, creates
 `.env`, and deploys the user services. The wizard asks for the bind address,
 port, web credentials, timezone, render node, startup dimensions, virtual-screen
-limit, and image source. Set `WEBKDE_INSTALL_DIR`, `WEBKDE_HTTPS_PORT`, or
-`WEBKDE_REF` before the command to select another absolute install directory,
-HTTPS port, branch, or tag:
+limit, image source, and KWallet automatic unlock. Set `WEBKDE_INSTALL_DIR`,
+`WEBKDE_HTTPS_PORT`, or `WEBKDE_REF` before the command to select another
+absolute install directory, HTTPS port, branch, or tag:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YiPrograms/WebKDE/main/install.sh \
@@ -285,6 +285,22 @@ Remove the service links and generated units while preserving `.env` and
 
 Pass `--purge` to delete that checkout's credentials and persistent container
 data as well.
+
+## KWallet
+
+The configuration wizard can unlock `kdewallet` when the WebKDE Plasma session
+starts. Enter the wallet password, which normally matches the Linux login
+password when `pam_kwallet` created the wallet. The wizard encrypts it with
+`systemd-creds --user` and stores the encrypted credential at
+`data/credentials/kwallet-password.cred`. The password is decrypted only into
+the private runtime credential directory of `webkde-wallet.service`.
+
+The wallet service derives the same salted PBKDF2 key as `pam_kwallet`, opens
+the wallet before applications request secrets, and closes all wallets when the
+WebKDE session stops. Brave, Chromium, QtKeychain applications, and the Secret
+Service portal then use the existing wallet entries. Run
+`./scripts/configure.sh` to replace the encrypted credential after changing the
+wallet password, followed by `./scripts/deploy.sh`.
 
 ## Audio
 

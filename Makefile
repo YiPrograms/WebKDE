@@ -26,7 +26,7 @@ logs:
 	journalctl --user -u webkde.service -f
 
 user-logs:
-	journalctl --user -u webkde-session.service -u webkde-bridge.service -u webkde-inhibit.service -u plasma-kwin_wayland.service -f
+	journalctl --user -u webkde-session.service -u webkde-bridge.service -u webkde-wallet.service -u webkde-inhibit.service -u plasma-kwin_wayland.service -f
 
 status:
 	./scripts/display-mode.sh status
@@ -37,7 +37,7 @@ doctor:
 validate:
 	bash -n install.sh scripts/*.sh container/*.sh container/defaults/*.sh
 	docker compose --env-file .env.example config --quiet
-	@! rg -n '@(ENV_FILE|RUNTIME|WIDTH|HEIGHT|MAX_SCREENS|KWIN_WRAPPER|SYSTEMCTL)@' \
+	@! rg -n '@(ENV_FILE|RUNTIME|WIDTH|HEIGHT|MAX_SCREENS|KWIN_WRAPPER|SYSTEMCTL|WALLET_CREDENTIAL)@' \
 		Dockerfile compose.yaml container README.md docs || \
 		(echo "Unexpected unrendered system placeholder" >&2; exit 1)
 	git diff --check

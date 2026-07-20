@@ -16,7 +16,7 @@ user_unit_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
   exit 1
 }
 
-for command in docker systemctl kwin_wayland_wrapper kde-inhibit systemd-inhibit sleep; do
+for command in docker systemctl systemd-creds busctl python3 kwin_wayland_wrapper kde-inhibit systemd-inhibit sleep; do
   command -v "${command}" >/dev/null 2>&1 || { echo "Missing prerequisite: ${command}" >&2; exit 1; }
 done
 docker compose version >/dev/null 2>&1 || { echo "Docker Compose v2 is required." >&2; exit 1; }
@@ -98,6 +98,7 @@ done
 systemctl --user stop webkde.service 2>/dev/null || true
 install -d -m 0700 "${WEBKDE_CONFIG_DIR}"
 install -d -m 0755 "${generated_dir}/plasma-kwin_wayland.service.d"
+wallet_credential="${repo_dir}/data/credentials/kwallet-password.cred"
 
 sed \
   -e "s|@APP_DIR@|${repo_dir}|g" \
@@ -119,6 +120,10 @@ sed \
   -e "s|@ENV_FILE@|${env_file}|g" \
   "${repo_dir}/systemd/user/webkde-bridge.service.in" >"${generated_dir}/webkde-bridge.service"
 sed \
+  -e "s|@APP_DIR@|${repo_dir}|g" \
+  -e "s|@WALLET_CREDENTIAL@|${wallet_credential}|g" \
+  "${repo_dir}/systemd/user/webkde-wallet.service.in" >"${generated_dir}/webkde-wallet.service"
+sed \
   -e "s|@RUNTIME@|${WEBKDE_RUNTIME_DIR}|g" \
   -e "s|@WIDTH@|${WEBKDE_MONITOR_WIDTH}|g" \
   -e "s|@HEIGHT@|${WEBKDE_MONITOR_HEIGHT}|g" \
@@ -131,10 +136,11 @@ chmod 0644 \
   "${generated_dir}/webkde-session.service" \
   "${generated_dir}/webkde-inhibit.service" \
   "${generated_dir}/webkde-bridge.service" \
+  "${generated_dir}/webkde-wallet.service" \
   "${generated_dir}/plasma-kwin_wayland.service.d/webkde.conf"
 
 install -d -m 0755 "${user_unit_dir}/plasma-kwin_wayland.service.d"
-for unit in webkde.service webkde-session.service webkde-inhibit.service webkde-bridge.service; do
+for unit in webkde.service webkde-session.service webkde-inhibit.service webkde-bridge.service webkde-wallet.service; do
   ln -sfn "${generated_dir}/${unit}" "${user_unit_dir}/${unit}"
 done
 ln -sfn \
