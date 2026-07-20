@@ -88,5 +88,7 @@ if [[ "${fresh_configuration}" == true && "${ref}" =~ ^v([0-9].*)$ ]]; then
 fi
 ./scripts/deploy.sh
 
+# shellcheck disable=SC1091
+source .env
 echo "WebKDE is installed in ${install_dir}."
-echo "Open https://127.0.0.1:${port}/ after the container becomes healthy."
+echo "Open https://127.0.0.1:${WEBKDE_HTTPS_PORT}/ after the container becomes healthy."
