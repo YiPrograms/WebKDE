@@ -398,12 +398,20 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                                             detail = stderr.decode(errors="replace").strip()
                                             raise OSError(detail or "swaymsg failed")
 
+                                    reset_commands = []
+                                    restore_commands = []
                                     commands = []
                                     for rect in layout_rects:
                                         index = rect["index"] - 1
                                         criteria = f'[title=".*WL-{index}.*"]'
+                                        reset_commands.append(f"{criteria} move scratchpad")
+                                        restore_commands.append(
+                                            f"{criteria} scratchpad show, floating enable, "
+                                            f'resize set width {rect["width"]} px height {rect["height"]} px, '
+                                            f'move position {rect["x"]} px {rect["y"]} px'
+                                        )
                                         commands.append(
-                                            f"{criteria} move workspace current, floating enable, "
+                                            f"{criteria} floating enable, "
                                             f'resize set width {rect["width"]} px height {rect["height"]} px, '
                                             f'move position {rect["x"]} px {rect["y"]} px'
                                         )
@@ -412,18 +420,20 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                                             f'[title=".*WL-{index}.*"] move scratchpad',
                                             ignore_missing=True,
                                         )
-                                    for layout_pass in range(2):
-                                        for attempt in range(40):
-                                            try:
-                                                for command in commands:
-                                                    await run_sway(command)
-                                                break
-                                            except OSError as error:
-                                                if "No matching node." not in str(error) or attempt == 39:
-                                                    raise
-                                                await asyncio.sleep(0.25)
-                                        if layout_pass == 0:
-                                            await asyncio.sleep(0.5)
+                                    for attempt in range(40):
+                                        try:
+                                            for command in reset_commands:
+                                                await run_sway(command)
+                                            for command in restore_commands:
+                                                await run_sway(command)
+                                            break
+                                        except OSError as error:
+                                            if "No matching node." not in str(error) or attempt == 39:
+                                                raise
+                                            await asyncio.sleep(0.25)
+                                    await asyncio.sleep(0.5)
+                                    for command in commands:
+                                        await run_sway(command)
                                     temporary.write_text(request)
                                     temporary.replace(request_path)
                                     await asyncio.sleep(0.35)
@@ -679,12 +689,20 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                                             detail = stderr.decode(errors="replace").strip()
                                             raise OSError(detail or "swaymsg failed")
 
+                                    reset_commands = []
+                                    restore_commands = []
                                     commands = []
                                     for rect in layout_rects:
                                         index = rect["index"] - 1
                                         criteria = f'[title=".*WL-{index}.*"]'
+                                        reset_commands.append(f"{criteria} move scratchpad")
+                                        restore_commands.append(
+                                            f"{criteria} scratchpad show, floating enable, "
+                                            f'resize set width {rect["width"]} px height {rect["height"]} px, '
+                                            f'move position {rect["x"]} px {rect["y"]} px'
+                                        )
                                         commands.append(
-                                            f"{criteria} move workspace current, floating enable, "
+                                            f"{criteria} floating enable, "
                                             f'resize set width {rect["width"]} px height {rect["height"]} px, '
                                             f'move position {rect["x"]} px {rect["y"]} px'
                                         )
@@ -693,18 +711,20 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                                             f'[title=".*WL-{index}.*"] move scratchpad',
                                             ignore_missing=True,
                                         )
-                                    for layout_pass in range(2):
-                                        for attempt in range(40):
-                                            try:
-                                                for command in commands:
-                                                    await run_sway(command)
-                                                break
-                                            except OSError as error:
-                                                if "No matching node." not in str(error) or attempt == 39:
-                                                    raise
-                                                await asyncio.sleep(0.25)
-                                        if layout_pass == 0:
-                                            await asyncio.sleep(0.5)
+                                    for attempt in range(40):
+                                        try:
+                                            for command in reset_commands:
+                                                await run_sway(command)
+                                            for command in restore_commands:
+                                                await run_sway(command)
+                                            break
+                                        except OSError as error:
+                                            if "No matching node." not in str(error) or attempt == 39:
+                                                raise
+                                            await asyncio.sleep(0.25)
+                                    await asyncio.sleep(0.5)
+                                    for command in commands:
+                                        await run_sway(command)
 
                                     # KWin derives nested output modes from its host-window
                                     # configure size. Publish the KScreen request only after
@@ -831,16 +851,18 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                                             detail = stderr.decode(errors="replace").strip()
                                             raise OSError(detail or "swaymsg failed")
 
+                                    reset_commands = []
+                                    restore_commands = []
                                     active_commands = []
                                     offset = 0
                                     for index in range(layout_count):
                                         criteria = f'[title=".*WL-{index}.*"]'
+                                        reset_commands.append(f"{criteria} move scratchpad")
                                         if layout_orientation == "horizontal":
                                             size = layout_width // layout_count + (
                                                 1 if index < layout_width % layout_count else 0
                                             )
-                                            command = (
-                                                f"{criteria} move workspace current, floating enable, "
+                                            geometry = (
                                                 f"resize set width {size} px height {layout_height} px, "
                                                 f"move position {offset} px 0 px"
                                             )
@@ -848,12 +870,16 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                                             size = layout_height // layout_count + (
                                                 1 if index < layout_height % layout_count else 0
                                             )
-                                            command = (
-                                                f"{criteria} move workspace current, floating enable, "
+                                            geometry = (
                                                 f"resize set width {layout_width} px height {size} px, "
                                                 f"move position 0 px {offset} px"
                                             )
-                                        active_commands.append(command)
+                                        restore_commands.append(
+                                            f"{criteria} scratchpad show, floating enable, {geometry}"
+                                        )
+                                        active_commands.append(
+                                            f"{criteria} floating enable, {geometry}"
+                                        )
                                         offset += size
 
                                     for index in range(layout_count, layout_max_screens):
@@ -862,15 +888,19 @@ handler = '''                    elif message.startswith("WEBKDE_LAYOUT_V3,"):
                                             ignore_missing=True,
                                         )
 
-                                    # KWin may publish one final size hint after an output is
-                                    # enabled. Reapply the exact canvas partition once it has.
-                                    for layout_pass in range(2):
-                                        if request_path.read_text() != request:
-                                            return
-                                        for command in active_commands:
-                                            await run_sway(command)
-                                        if layout_pass == 0:
-                                            await asyncio.sleep(0.5)
+                                    # Remapping forces KWin to consume a new host-window
+                                    # configure even when Sway's outer rectangle already has
+                                    # the requested size. A resize alone can otherwise leave
+                                    # the client surface at the previous capture-atlas width.
+                                    for command in reset_commands:
+                                        await run_sway(command)
+                                    for command in restore_commands:
+                                        await run_sway(command)
+                                    await asyncio.sleep(0.5)
+                                    if request_path.read_text() != request:
+                                        return
+                                    for command in active_commands:
+                                        await run_sway(command)
 
                                     try:
                                         await websocket.send(
