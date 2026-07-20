@@ -78,7 +78,11 @@ fresh_configuration=false
 if [[ ! -f .env ]]; then
   fresh_configuration=true
 fi
-./scripts/configure.sh "${port}"
+if [[ "${WEBKDE_NONINTERACTIVE:-false}" == true ]]; then
+  ./scripts/configure.sh "${port}"
+else
+  ./scripts/configure.sh --wizard "${port}"
+fi
 if [[ "${fresh_configuration}" == true && "${ref}" =~ ^v([0-9].*)$ ]]; then
   sed -i "s|^WEBKDE_IMAGE=.*|WEBKDE_IMAGE=ghcr.io/yiprograms/webkde:${BASH_REMATCH[1]}|" .env
 fi

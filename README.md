@@ -67,11 +67,13 @@ Install the current `main` release archive and deploy it as the desktop user:
 curl -fsSL https://raw.githubusercontent.com/YiPrograms/WebKDE/main/install.sh | bash
 ```
 
-The bootstrap downloads the source archive into `~/.local/share/webkde`, pulls
-`ghcr.io/yiprograms/webkde:latest`, creates `.env`, and deploys the user
-services. Set `WEBKDE_INSTALL_DIR`, `WEBKDE_HTTPS_PORT`, or `WEBKDE_REF` before
-the command to select another absolute install directory, HTTPS port, branch,
-or tag:
+The bootstrap downloads the source archive into `~/.local/share/webkde`, opens
+the configuration wizard, pulls `ghcr.io/yiprograms/webkde:latest`, creates
+`.env`, and deploys the user services. The wizard asks for the bind address,
+port, web credentials, timezone, render node, startup dimensions, virtual-screen
+limit, and image source. Set `WEBKDE_INSTALL_DIR`, `WEBKDE_HTTPS_PORT`, or
+`WEBKDE_REF` before the command to select another absolute install directory,
+HTTPS port, branch, or tag:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YiPrograms/WebKDE/main/install.sh \
@@ -86,9 +88,10 @@ $EDITOR .env
 ./scripts/doctor.sh
 ```
 
-The configuration helper creates a git-ignored `.env` and a random web
-password. Review at least the bind address, port, GPU render node, timezone,
-and monitor dimensions (used only as KWin's startup fallback).
+The configuration wizard creates or updates a git-ignored `.env`; pressing
+Enter accepts each displayed default and generates a random password on first
+use. `WEBKDE_NONINTERACTIVE=true` makes the one-line installer use generated
+defaults for automated deployment.
 
 Deploy that checkout for the user without `sudo`:
 
