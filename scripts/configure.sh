@@ -15,15 +15,25 @@ username="$(id -un)"
 timezone="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
 timezone="${timezone:-Etc/UTC}"
 password="$(openssl rand -base64 36 | tr -d '\n' | tr '/+' '_-')"
+port="${1:-3001}"
+[[ "${port}" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || {
+  echo "usage: $0 [https-port]" >&2
+  exit 2
+}
 
 umask 077
 cat >"${env_file}" <<EOF
 WEBKDE_HOST_USER=${username}
+WEBKDE_INSTANCE=${username}
 WEBKDE_PUID=${uid}
 WEBKDE_PGID=${gid}
+WEBKDE_COMPOSE_PROJECT=webkde-${uid}
+WEBKDE_IMAGE=ghcr.io/yiprograms/webkde:latest
+WEBKDE_BUILD_LOCAL=false
+WEBKDE_APP_DIR=${repo_dir}
 WEBKDE_TZ=${timezone}
 WEBKDE_BIND=127.0.0.1
-WEBKDE_HTTPS_PORT=3001
+WEBKDE_HTTPS_PORT=${port}
 WEBKDE_USER=webkde
 WEBKDE_PASSWORD=${password}
 WEBKDE_BASIC_AUTH=true
@@ -31,7 +41,7 @@ WEBKDE_SCROLL_SCALE=0.25
 WEBKDE_RUNTIME_DIR=/run/user/${uid}/webkde
 WEBKDE_PULSE_DIR=/run/user/${uid}/pulse
 WEBKDE_DRI_NODE=/dev/dri/renderD128
-WEBKDE_CONFIG_DIR=/var/lib/webkde/config
+WEBKDE_CONFIG_DIR=${repo_dir}/data/config
 WEBKDE_MONITOR_WIDTH=1920
 WEBKDE_MONITOR_HEIGHT=1080
 WEBKDE_MAX_SCREENS=8

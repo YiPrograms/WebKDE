@@ -5,7 +5,7 @@ PartOf=webkde-session.service
 
 [Service]
 Type=simple
-Environment=WEBKDE_ENV_FILE=/etc/webkde/webkde.env
-ExecStart=/opt/webkde/scripts/webkde-bridge.sh
+Environment=WEBKDE_ENV_FILE=@ENV_FILE@
+ExecStart=@APP_DIR@/scripts/webkde-bridge.sh
 Restart=on-failure
 RestartSec=2s

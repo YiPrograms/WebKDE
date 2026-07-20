@@ -1,25 +1,29 @@
-.PHONY: configure install uninstall start stop restart logs user-logs status doctor validate
+.PHONY: configure deploy undeploy install uninstall start stop restart logs user-logs status doctor validate
 
 configure:
 	./scripts/configure.sh
 
-install:
-	sudo ./scripts/install-system.sh "$${USER}"
+deploy:
+	./scripts/deploy.sh
 
-uninstall:
-	sudo ./scripts/uninstall-system.sh
+undeploy:
+	./scripts/undeploy.sh
+
+install: deploy
+
+uninstall: undeploy
 
 start:
-	sudo systemctl start webkde.service
+	systemctl --user start webkde.service
 
 stop:
-	sudo systemctl stop webkde.service
+	systemctl --user stop webkde.service
 
 restart:
-	sudo systemctl restart webkde.service
+	systemctl --user restart webkde.service
 
 logs:
-	journalctl -u webkde.service -f
+	journalctl --user -u webkde.service -f
 
 user-logs:
 	journalctl --user -u webkde-session.service -u webkde-bridge.service -u webkde-inhibit.service -u plasma-kwin_wayland.service -f
@@ -31,9 +35,9 @@ doctor:
 	./scripts/doctor.sh
 
 validate:
-	bash -n scripts/*.sh container/*.sh container/defaults/*.sh
+	bash -n install.sh scripts/*.sh container/*.sh container/defaults/*.sh
 	docker compose --env-file .env.example config --quiet
-	@! rg -n '@(UID|RUNTIME|WIDTH|HEIGHT|MAX_SCREENS|KWIN_WRAPPER|SYSTEMCTL)@' \
+	@! rg -n '@(ENV_FILE|RUNTIME|WIDTH|HEIGHT|MAX_SCREENS|KWIN_WRAPPER|SYSTEMCTL)@' \
 		Dockerfile compose.yaml container README.md docs || \
 		(echo "Unexpected unrendered system placeholder" >&2; exit 1)
 	git diff --check

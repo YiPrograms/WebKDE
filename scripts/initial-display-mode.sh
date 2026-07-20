@@ -2,10 +2,7 @@
 set -euo pipefail
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-env_file="${WEBKDE_ENV_FILE:-/etc/webkde/webkde.env}"
-if [[ ! -r "${env_file}" ]]; then
-  env_file="${repo_dir}/.env"
-fi
+env_file="${WEBKDE_ENV_FILE:-${repo_dir}/.env}"
 # shellcheck disable=SC1090
 source "${env_file}"
 WEBKDE_MAX_SCREENS="${WEBKDE_MAX_SCREENS:-8}"

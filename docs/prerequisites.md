@@ -12,6 +12,7 @@ The host needs:
 
 - a systemd-based Linux distribution and a non-root desktop user;
 - Docker Engine using the system daemon, plus Docker Compose v2;
+- `curl` and `tar` for archive installation;
 - Docker API access for the desktop user (normally membership in `docker`);
 - Plasma 6, `kwin_wayland_wrapper`, `startplasma-wayland`, KScreen, and
   XWayland, including the `kde-inhibit` and Qt 6 `qdbus` utilities;
@@ -28,6 +29,11 @@ sudo systemctl enable --now docker.service
 sudo usermod -aG docker,render,video DESKTOP_USER
 sudo loginctl enable-linger DESKTOP_USER
 ```
+
+Repeat the group-access and lingering setup for every Linux account that will
+run a concurrent WebKDE session. Each account needs its own systemd user manager
+and must be able to access Docker, the selected render node, and its own
+PipeWire-Pulse socket.
 
 Log out all sessions for that user and log in again after changing groups.
 Membership in the `docker` group is effectively root-equivalent; use an

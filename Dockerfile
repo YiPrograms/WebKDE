@@ -16,6 +16,8 @@ COPY --chmod=0755 container/patches/selkies-web-ui.py /tmp/selkies-web-ui.py
 COPY --chmod=0644 container/web/webkde-controls.js /usr/share/selkies/selkies-dashboard/webkde-controls.js
 COPY --chmod=0644 container/web/webkde-screen.html /usr/share/selkies/selkies-dashboard/webkde-screen.html
 COPY --chmod=0644 container/web/webkde-screen.js /usr/share/selkies/selkies-dashboard/webkde-screen.js
+COPY --chmod=0644 container/web/webkde-screens.html /usr/share/selkies/selkies-dashboard/webkde-screens.html
+COPY --chmod=0644 container/web/webkde-screens.js /usr/share/selkies/selkies-dashboard/webkde-screens.js
 COPY --chmod=0755 container/patches/selkies-scroll-scale.py /tmp/selkies-scroll-scale.py
 COPY --chmod=0755 container/entrypoint.sh /webkde-entrypoint.sh
 RUN case "${MONITOR_WIDTH}:${MONITOR_HEIGHT}" in \

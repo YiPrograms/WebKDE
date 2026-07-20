@@ -3,6 +3,7 @@
   const canvas = document.getElementById("screen");
   const status = document.getElementById("status");
   const pointer = document.getElementById("pointer");
+  const fitResolution = document.getElementById("fitResolution");
   const context = canvas.getContext("2d", {alpha: false, desynchronized: true});
   let view = null;
   let latestFrame = null;
@@ -13,12 +14,24 @@
   let pointerRawHotspotX = 0;
   let pointerRawHotspotY = 0;
   let pointerAvailable = false;
+  let controlWindow = null;
+  let configuredResolution = null;
 
   document.title = Number.isInteger(screen) ? `WebKDE Screen ${screen}` : "WebKDE Screen";
 
   function control() {
+    if (controlWindow && !controlWindow.closed) return controlWindow;
     try {
-      return opener && !opener.closed && opener.location.origin === location.origin ? opener : null;
+      let candidate = opener;
+      for (let depth = 0; depth < 2 && candidate && !candidate.closed; depth++) {
+        if (candidate.location.origin !== location.origin) return null;
+        if (candidate.document.getElementById("videoCanvas")) {
+          controlWindow = candidate;
+          return controlWindow;
+        }
+        candidate = candidate.opener;
+      }
+      return null;
     } catch (_) {
       return null;
     }
@@ -31,6 +44,23 @@
   function setStatus(message) {
     status.textContent = message;
     status.classList.toggle("hidden", !message);
+  }
+
+  function tabResolution() {
+    const ratio = devicePixelRatio || 1;
+    const viewport = window.visualViewport;
+    return {
+      width: Math.max(8, Math.floor((viewport?.width || innerWidth) * ratio / 8) * 8),
+      height: Math.max(2, Math.floor((viewport?.height || innerHeight) * ratio / 2) * 2),
+    };
+  }
+
+  function updateResolutionButton() {
+    const current = tabResolution();
+    const changed = configuredResolution &&
+      (current.width !== configuredResolution.width || current.height !== configuredResolution.height);
+    fitResolution.disabled = !changed;
+    fitResolution.textContent = changed ? `Set resolution to ${current.width}×${current.height}` : "Resolution matches tab";
   }
 
   async function syncFullscreenKeyboardLock() {
@@ -191,12 +221,25 @@
   addEventListener("beforeunload", () => post("webkde:satellite-closed"));
   addEventListener("message", event => {
     if (event.origin !== location.origin || event.source !== control()) return;
+    if (event.data?.type === "webkde:request-resolution") {
+      post("webkde:satellite-resolution", {
+        requestId: event.data.requestId,
+        ...tabResolution(),
+      });
+    }
     if (event.data?.type === "webkde:control-closed") setStatus("The WebKDE control tab was closed.");
     if (event.data?.type === "webkde:inactive") {
+      configuredResolution = null;
+      updateResolutionButton();
       latestFrame?.close();
       latestFrame = null;
       view = null;
       setStatus(`Screen ${screen} is not active in the current WebKDE layout.`);
+    }
+    if (event.data?.type === "webkde:layout") {
+      configuredResolution = Number(event.data.configuredWidth) > 0 && Number(event.data.configuredHeight) > 0 ?
+        {width: Number(event.data.configuredWidth), height: Number(event.data.configuredHeight)} : null;
+      updateResolutionButton();
     }
     if (event.data?.type === "webkde:frame" && event.data.bitmap) {
       latestFrame?.close();
@@ -230,6 +273,13 @@
   });
 
   document.addEventListener("fullscreenchange", syncFullscreenKeyboardLock);
+  addEventListener("resize", updateResolutionButton);
+  fitResolution.addEventListener("click", () => {
+    if (fitResolution.disabled) return;
+    fitResolution.disabled = true;
+    fitResolution.textContent = "Applying…";
+    post("webkde:set-screen-resolution", tabResolution());
+  });
   document.getElementById("fullscreen").addEventListener("click", async () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else {

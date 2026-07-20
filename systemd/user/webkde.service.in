@@ -1,0 +1,17 @@
+[Unit]
+Description=WebKDE host-native Plasma streaming session
+Documentation=file:@APP_DIR@/README.md
+Wants=webkde-session.service
+Before=webkde-session.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=WEBKDE_ENV_FILE=@ENV_FILE@
+ExecStart=@APP_DIR@/scripts/user-start.sh
+ExecStop=@APP_DIR@/scripts/user-stop.sh
+TimeoutStartSec=20min
+TimeoutStopSec=3min
+
+[Install]
+WantedBy=default.target

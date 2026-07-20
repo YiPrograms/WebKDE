@@ -1,4 +1,4 @@
-name: webkde
+name: ${WEBKDE_COMPOSE_PROJECT:-webkde}
 
 services:
   selkies:
@@ -8,8 +8,7 @@ services:
         SELKIES_BASE_IMAGE: ${SELKIES_BASE_IMAGE:-ghcr.io/linuxserver/baseimage-selkies:debiantrixie@sha256:ac7fd6d182238b4a99e66554c5e75be48a714e2a0c9da81bd18e171ff9ba3dd5}
         MONITOR_WIDTH: ${WEBKDE_MONITOR_WIDTH:-1920}
         MONITOR_HEIGHT: ${WEBKDE_MONITOR_HEIGHT:-1080}
-    image: webkde-selkies:local
-    container_name: webkde-selkies
+    image: ${WEBKDE_IMAGE:-ghcr.io/yiprograms/webkde:latest}
     environment:
       PUID: ${WEBKDE_PUID:-1000}
       PGID: ${WEBKDE_PGID:-1000}

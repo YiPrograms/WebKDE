@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WebKDE Virtual Screens</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #11151b; color: #edf2f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 18rem; }
+    header, main { padding: clamp(.75rem, 2.5vw, 1.25rem); }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #354052; }
+    h1 { margin: 0; font-size: clamp(1.05rem, 4vw, 1.25rem); }
+    p { margin: .2rem 0 .8rem; color: #aeb9c8; line-height: 1.45; }
+    button, select, input { min-height: 2.25rem; color: inherit; background: #202936; border: 1px solid #526174; border-radius: .35rem; padding: .45rem .65rem; }
+    button { cursor: pointer; }
+    button:hover { background: #2b3747; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    .toolbar, .actions, .presets, .counter, .profile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+    .toolbar { white-space: nowrap; }
+    .counter { flex-wrap: nowrap; }
+    .counter button { width: 2.5rem; padding: .35rem; font-size: 1.2rem; line-height: 1; }
+    #screenCount { min-width: 2rem; text-align: center; font-variant-numeric: tabular-nums; }
+    .profiles { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) auto; gap: .5rem; padding: .75rem; margin-bottom: .8rem; border: 1px solid #354052; border-radius: .5rem; background: #171d26; }
+    .profiles select, .profiles input { min-width: 0; width: 100%; }
+    #desktop { position: relative; height: clamp(14rem, 42vh, 25rem); margin: .8rem 0; overflow: hidden; border: 1px solid #354052; border-radius: .5rem;
+      background-color: #0b0e13; background-image: linear-gradient(#1a202b 1px, transparent 1px), linear-gradient(90deg, #1a202b 1px, transparent 1px); background-size: 1.5rem 1.5rem; }
+    .screen { position: absolute; display: grid; place-items: center; min-width: 2.75rem; min-height: 2.1rem; border: 2px solid #73a9e6; border-radius: .4rem;
+      background: #1c4c78dd; user-select: none; cursor: grab; touch-action: none; box-shadow: 0 .25rem .8rem #0008; }
+    .screen.dragging { cursor: grabbing; opacity: .55; }
+    .screen.drop-target { border-color: #7ee787; background: #24613ddd; }
+    .screen strong, .screen small { pointer-events: none; }
+    .screen strong { font-size: 1rem; }
+    .screen small { color: #d9e8f8; }
+    #dropIndicator { position: absolute; display: none; z-index: 5; background: #7ee78799; pointer-events: none; }
+    #dragCoordinates { position: absolute; display: none; z-index: 7; top: .55rem; left: .55rem; max-width: calc(100% - 1.1rem); padding: .35rem .55rem; border: 1px solid #526174; border-radius: .35rem; background: #11151bee; color: #edf2f7; font-size: .8rem; font-variant-numeric: tabular-nums; pointer-events: none; box-shadow: 0 .2rem .6rem #0008; }
+    #dragCoordinates.snapped { border-color: #7ee787; color: #b7f7c7; }
+    #screenSettings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: .75rem; }
+    .card { padding: .8rem; border: 1px solid #354052; border-radius: .45rem; background: #171d26; }
+    .card h2 { margin: 0 0 .65rem; font-size: 1rem; }
+    .preset-field { display: grid; gap: .3rem; margin-bottom: .55rem; color: #c9d4e2; font-size: .9rem; }
+    .preset-field select { width: 100%; }
+    .resolution { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .35rem; }
+    .resolution input { width: 100%; }
+    .card-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+    #message { min-height: 1.5rem; margin: .7rem 0; color: #aeb9c8; }
+    #message.error { color: #ff8d8d; }
+    #message.success { color: #7ee787; }
+    .actions { justify-content: flex-end; margin: 1rem calc(clamp(.75rem, 2.5vw, 1.25rem) * -1) calc(clamp(.75rem, 2.5vw, 1.25rem) * -1); padding: .8rem clamp(.75rem, 2.5vw, 1.25rem); border-top: 1px solid #354052; background: #11151b; }
+    .primary { background: #1769aa; border-color: #58a6e7; }
+    @media (max-width: 34rem) {
+      header { align-items: stretch; flex-direction: column; gap: .65rem; }
+      .toolbar { justify-content: space-between; }
+      .profiles { grid-template-columns: 1fr; }
+      .profile-actions { display: grid; grid-template-columns: repeat(3, 1fr); }
+      .presets { display: grid; grid-template-columns: repeat(3, 1fr); }
+      .presets button { padding-inline: .3rem; }
+      #desktop { height: clamp(12rem, 34vh, 17rem); }
+      .screen strong { font-size: .82rem; }
+      .screen small { display: none; }
+      .card-actions { display: grid; }
+      .actions > button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Virtual Screens</h1>
+    <div class="toolbar"><span>Screen count</span><div class="counter"><button type="button" id="decreaseScreens" aria-label="Remove a screen">−</button><output id="screenCount" aria-live="polite">1</output><button type="button" id="increaseScreens" aria-label="Add a screen">+</button></div></div>
+  </header>
+  <main>
+    <p>Drag any screen, including the primary screen. Coordinates are relative to Screen 1 and may be negative. Edges snap into alignment; hold Ctrl while dragging to ignore snapping.</p>
+    <form id="profileForm" class="profiles">
+      <select id="profileSelect" aria-label="Saved screen profile"><option value="">Saved profiles…</option></select>
+      <input id="profileName" type="text" maxlength="64" autocomplete="off" placeholder="Profile name" aria-label="Profile name">
+      <div class="profile-actions"><button type="button" id="loadProfile">Load</button><button type="submit" id="saveProfile">Save</button><button type="button" id="deleteProfile">Delete</button></div>
+    </form>
+    <div class="presets">
+      <button type="button" data-preset="row">Row</button>
+      <button type="button" data-preset="column">Column</button>
+      <button type="button" data-preset="compact">Compact</button>
+    </div>
+    <div id="desktop" aria-label="Virtual desktop arrangement"><div id="dropIndicator"></div><div id="dragCoordinates" role="status"></div></div>
+    <section id="screenSettings"></section>
+    <div id="message" role="status"></div>
+    <div class="actions">
+      <button type="button" id="reset">Reset draft</button>
+      <button type="button" id="apply" class="primary">Apply</button>
+    </div>
+  </main>
+  <script src="./webkde-screens.js"></script>
+</body>
+</html>

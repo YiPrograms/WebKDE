@@ -4,10 +4,7 @@ set -u
 failures=0
 warnings=0
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-env_file="${WEBKDE_ENV_FILE:-/etc/webkde/webkde.env}"
-if [[ ! -r "${env_file}" ]]; then
-  env_file="${repo_dir}/.env"
-fi
+env_file="${WEBKDE_ENV_FILE:-${repo_dir}/.env}"
 if [[ -r "${env_file}" ]]; then
   # shellcheck disable=SC1090
   source "${env_file}"
@@ -17,7 +14,7 @@ ok() { printf 'OK   %s\n' "$*"; }
 warn() { printf 'WARN %s\n' "$*"; warnings=$((warnings + 1)); }
 fail() { printf 'FAIL %s\n' "$*"; failures=$((failures + 1)); }
 
-for command in docker kwin_wayland_wrapper startplasma-wayland kscreen-doctor openssl pactl loginctl systemctl systemd-inhibit kde-inhibit runuser; do
+for command in docker kwin_wayland_wrapper startplasma-wayland kscreen-doctor openssl pactl loginctl systemctl systemd-inhibit kde-inhibit; do
   if command -v "${command}" >/dev/null 2>&1; then
     ok "command: ${command}"
   else
@@ -58,10 +55,10 @@ else
 fi
 
 if [[ -r "${env_file}" ]]; then ok "configuration is readable: ${env_file}"; else warn "configuration is absent; run ./scripts/configure.sh"; fi
-if systemctl list-unit-files webkde.service --no-legend 2>/dev/null | grep -q webkde.service; then
-  ok "system-wide WebKDE unit is installed"
+if systemctl --user list-unit-files webkde.service --no-legend 2>/dev/null | grep -q '^webkde.service'; then
+  ok "user-local WebKDE service is installed"
 else
-  warn "system-wide WebKDE unit is not installed yet"
+  warn "user-local WebKDE service is not installed"
 fi
 
 printf '\n%d failure(s), %d warning(s)\n' "${failures}" "${warnings}"

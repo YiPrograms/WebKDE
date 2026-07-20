@@ -19,21 +19,29 @@ The browser controls the streamed canvas size. A page control partitions that
 live canvas into one or more KWin outputs without restarting Pixelflux, Sway,
 KWin, Plasma, or desktop applications.
 
-## Installation model
+## Deployment model
 
-WebKDE is installed system-wide:
+Each WebKDE checkout is a complete user-local deployment:
 
-- application files: `/opt/webkde`;
-- configuration and credentials: `/etc/webkde/webkde.env`;
-- persistent container data: `/var/lib/webkde`;
-- boot lifecycle: `/etc/systemd/system/webkde.service`.
+- application files and tracked service templates: the Git checkout;
+- configuration and credentials: `.env`;
+- persistent container data: `data/config`;
+- rendered user units: `systemd/generated`;
+- service discovery links: `~/.config/systemd/user`.
 
-One intentionally minimal service remains in the desktop user's systemd
-manager. Plasma 6 starts KWin, D-Bus services, portals, and session targets
-there, while PipeWire is also tied to the user runtime. Starting that desktop
-directly as root from a system service would bypass Plasma's supported session
-lifecycle. The system-wide `webkde.service` owns and starts this user session;
-the user unit is not independently enabled.
+`.env`, `data/`, and `systemd/generated/` are git-ignored. The deployment
+script renders units with absolute checkout paths and links them into the
+systemd user manager. Run WebKDE directly from a durable checkout location.
+
+Every configured Linux user uses an independent checkout, Plasma session,
+systemd user manager, Compose project, Selkies container, image tag, runtime
+directory, audio socket, credentials, and HTTPS port. Browser profiles are
+isolated naturally when each session uses its own port or hostname.
+
+The `webkde.service` user unit starts that user's container and Plasma session.
+Plasma 6 starts KWin, D-Bus services, portals, and session targets in the same
+user manager, while PipeWire is tied to that user's runtime. WebKDE itself does
+not require root; the administrator only prepares the host prerequisites.
 
 While WebKDE is active, KDE and logind inhibitors prevent automatic locking,
 display blanking, suspend/hibernate, and lid-close sleep. The inhibitors are
@@ -47,12 +55,30 @@ access for the desktop user, and systemd user lingering first. See
 [Host prerequisites](docs/prerequisites.md) for checks and example commands for
 Debian/Ubuntu, Fedora, Arch-based systems, and openSUSE.
 
-Only one Plasma session should use a given systemd user manager. If the machine
-also has a physical Plasma login, use a dedicated non-root user for WebKDE.
+Only one Plasma session should use a given systemd user manager. Use a distinct
+non-root Linux account for every concurrent WebKDE session, and do not use that
+same account for a simultaneous physical Plasma login.
 
 ## Deploy
 
-Run configuration and checks as the intended desktop user:
+Install the current `main` release archive and deploy it as the desktop user:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YiPrograms/WebKDE/main/install.sh | bash
+```
+
+The bootstrap downloads the source archive into `~/.local/share/webkde`, pulls
+`ghcr.io/yiprograms/webkde:latest`, creates `.env`, and deploys the user
+services. Set `WEBKDE_INSTALL_DIR`, `WEBKDE_HTTPS_PORT`, or `WEBKDE_REF` before
+the command to select another absolute install directory, HTTPS port, branch,
+or tag:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YiPrograms/WebKDE/main/install.sh \
+  | WEBKDE_HTTPS_PORT=3002 WEBKDE_REF=v1.0.0 bash
+```
+
+For a Git checkout, run configuration and checks as the intended desktop user:
 
 ```bash
 ./scripts/configure.sh
@@ -62,25 +88,42 @@ $EDITOR .env
 
 The configuration helper creates a git-ignored `.env` and a random web
 password. Review at least the bind address, port, GPU render node, timezone,
-monitor dimensions (used only as KWin's startup fallback).
+and monitor dimensions (used only as KWin's startup fallback).
 
-Install the application for that user:
+Deploy that checkout for the user without `sudo`:
 
 ```bash
-sudo ./scripts/install-system.sh "$USER"
+./scripts/deploy.sh
 ```
 
-The first image pull and build can take several minutes. Follow startup with:
+For concurrent sessions, give each Linux user a durable checkout and select a
+unique port:
 
 ```bash
-systemctl status webkde.service
-journalctl -u webkde.service -f
+alice$ ./scripts/configure.sh 3001
+alice$ ./scripts/deploy.sh
+bob$   ./scripts/configure.sh 3002
+bob$   ./scripts/deploy.sh
+```
+
+Re-running `deploy.sh` renders the units from the current checkout and restarts
+that user's application and service. Docker reports an actionable bind error
+if another service already owns the selected port.
+
+Set `WEBKDE_BUILD_LOCAL=true` in `.env` to build the container from the current
+checkout. The default uses the published GHCR image.
+
+The first image pull or local build can take several minutes. Follow startup with:
+
+```bash
+systemctl --user status webkde.service
+journalctl --user -u webkde.service -f
 journalctl --user -u webkde-session.service -u plasma-kwin_wayland.service -f
-docker logs -f webkde-selkies
+docker compose --env-file .env -f compose.yaml logs -f
 ```
 
-Open `https://127.0.0.1:3001/` by default. The generated certificate is
-self-signed. The username and password are in `/etc/webkde/webkde.env`.
+Open the configured port, such as `https://127.0.0.1:3001/`. The generated
+certificate is self-signed. The username and password are in `.env`.
 
 Basic authentication is enabled by default. Set `WEBKDE_BASIC_AUTH=false`
 only when access is protected by a trusted VPN, firewall, or authenticating
@@ -95,44 +138,72 @@ ssh -L 3001:127.0.0.1:3001 DESKTOP_USER@WEBKDE_HOST
 
 Then open `https://127.0.0.1:3001/` on the client.
 
+## Multiple user sessions
+
+Each user's `webkde.service` owns exactly that Linux user's KDE session.
+Instances can run concurrently and are managed from their respective accounts:
+
+```bash
+alice$ systemctl --user start webkde.service
+bob$   systemctl --user restart webkde.service
+```
+
+Use a distinct port or hostname for every instance. Distinct browser origins
+also keep virtual-screen profiles and automatic-start preferences separated.
+Using different URL paths on one origin requires an authenticating reverse
+proxy and does not isolate browser local storage, so separate hostnames are
+preferred. All instances may share the same render node, but concurrent atlas
+resolution, encoder throughput, GPU memory, system RAM, and network bandwidth
+must fit the host.
+
 ## Virtual screens
 
-Open Selkies' **Screen Settings** section and use the **Virtual screens**
-selector. The choice is stored by that browser. Counts from 1 through 8 are
-available by default. The current page is always the Screen 1 control window
-and an **Open Screen N** button is shown for every other enabled output. Each
-button opens a satellite tab. Only the control window receives and decodes the
-Selkies stream; satellites receive cropped frames from that decoded canvas.
+Open Selkies' **Screen Settings** section and select **Manage Virtual Screens**.
+On a new main tab, WebKDE waits before starting the stream and offers **Use one
+monitor**, **Use profile**, and **Custom**. Enable automatic startup to reuse the
+last applied configuration on later visits; disable it in the virtual-screen
+controls in Selkies' **Screen Settings** to restore the startup chooser.
+The dedicated control tab manages from 1 through 8 outputs by default. Choose a
+screen count, choose a common resolution preset or enter an independent custom
+resolution for every screen, and drag a screen freely; on release it snaps to
+the nearest valid attachment edge. Nearby screen edges align automatically and
+live coordinates appear while dragging; hold Ctrl to ignore alignment snapping
+and retain the exact vertical or horizontal offset. Coordinates are relative to
+Screen 1 and can be negative; Screen 1 itself can also be dragged. Row, Column,
+and Compact presets are also available. Named profiles save and restore
+complete screen counts, resolutions, and arrangements in the browser. Loading
+a profile creates a draft; select **Apply** to activate it. Screen 1 remains
+primary. **Apply** stores the
+configuration in the browser and updates the desktop without restarting Plasma.
 Allow pop-ups for the WebKDE origin when the browser asks.
 
-Use **Screen arrangement** to choose an equal-tile Row, Column, or compact Grid.
-Select a numbered tile and move it with the arrow controls; moving into another
-tile swaps them. Moving into an empty cell creates a new row or column. Drafts
-may be edited freely, but **Apply** remains disabled until every screen is
-edge-connected. **Reset** discards the draft. Screen 1 remains the primary
-output wherever its tile is placed. Applying stores the topology in the browser
-without restarting Plasma.
+**Set to current tab resolution** samples that screen tab's current viewport and
+device-pixel ratio once. The resulting resolution remains fixed when multiple
+virtual screens are active; later tab resizes only scale the displayed crop to
+fit and do not resize KDE or repack the stream. A satellite tab must be open
+before its current resolution can be sampled. When the default single-screen
+configuration has never been set explicitly, Screen 1 continues to follow the
+normal Selkies responsive-resolution behavior.
 
-With Selkies **Manual Resolution** enabled, its manual width and height define
-the requested size of every KDE output. With it disabled, every output follows
-the Screen 1 browser viewport. The shared 4080×4080 stream limit can still
-reduce all outputs by the same factor when several screens are enabled.
+An active satellite tab enables **Set resolution to …** whenever its aligned
+device-pixel viewport differs from that screen's configured resolution. The
+button applies the new size without opening the virtual-screen manager.
 
 The control window must remain open while satellite windows are in use. Closing
 a satellite does not disable its KDE output or move applications. In Per-tab
-mode, the Screen 1 browser size is the requested size of every KDE output.
+mode, each configured screen size becomes the requested size of its KDE output.
 Each browser tab uses independent absolute mouse input. WebKDE does not lock,
 warp, or hand off the browser pointer at screen edges. Browser security prevents
 a reliable held-button drag from continuing across separate tabs, so release
 the window on one screen and continue moving it from the destination tab.
 Satellite fullscreen uses the same browser keyboard lock as the control window,
 so Chromium's press-and-hold Escape gesture exits fullscreen in either window.
-WebKDE packs the output frames into the most space-efficient grid that fits the
-stream's 4080×4080 limit and reports the effective per-screen resolution in
-Screen Settings. Large screen counts may therefore reduce all outputs by the
-same factor. This internal capture packing is independent of the desktop
-arrangement selected in the UI. Opening or closing Selkies' settings sidebar
-does not resize KDE outputs.
+WebKDE packs the differently sized output frames into a shared atlas that fits
+the stream's 4080×4080 limit and reports every effective resolution in Screen
+Settings. If the requested rectangles do not fit, it reduces all outputs by a
+common factor while preserving their aspect ratios. This internal capture
+packing is independent of the desktop arrangement selected in the control tab.
+Opening or closing Selkies' settings sidebar does not resize KDE outputs.
 
 At UI scales above 100%, Screen Settings reports both coordinate spaces. KWin's
 nested output backend reports the streamed pixel mode at 100%, while Selkies'
@@ -161,9 +232,8 @@ H.264 encoder so its browser-side crash recovery cannot persistently fall back
 to CPU JPEG after repeated service or compositor restarts. Change this variable
 only when a target GPU requires another Selkies encoder.
 
-The installed default reserves eight nested outputs. Set
-`WEBKDE_MAX_SCREENS` to a value from 1 through 8 before installation if a
-smaller maximum is preferred.
+The default reserves eight nested outputs. Set `WEBKDE_MAX_SCREENS` to a value
+from 1 through 8 in `.env`, then deploy to apply the selected maximum.
 
 The same Screen Settings section has **Restart Plasma** and **Restart KWin**
 recovery buttons. Both ask for confirmation. Restarting Plasma closes the
@@ -178,38 +248,40 @@ positions. It stops KWin, saves the previous `kwinoutputconfig.json` as
 restarts KWin, and reapplies the current WebKDE layout. It asks for confirmation
 because Wayland applications may close.
 
-`make status` (or `/opt/webkde/scripts/display-mode.sh status`) remains
-available for diagnostics. The old `make single` and `make dual` controls were
-removed because they forced a fixed stream resolution.
+`make status` (or `./scripts/display-mode.sh status`) reports the service,
+container, Plasma session, and KScreen output state.
 
 ## Operations
 
 ```bash
-sudo systemctl start webkde.service
-sudo systemctl stop webkde.service
-sudo systemctl restart webkde.service
+systemctl --user start webkde.service
+systemctl --user stop webkde.service
+systemctl --user restart webkde.service
 ./scripts/doctor.sh
 make validate
 ```
 
-Edit `/etc/webkde/webkde.env` for an installed system. A bind address, port,
-password change takes effect after a restart. Monitor-size or
-base-image changes also rebuild the local image automatically on restart.
+Edit `.env` for the deployed session. A bind address, port, or password change
+takes effect after a restart. Local-build source, monitor-size, or base-image
+changes rebuild the local image on restart. Run `./scripts/deploy.sh` after
+changing values embedded in generated user units, including monitor dimensions
+and `WEBKDE_MAX_SCREENS`.
 
-To redeploy a newer checkout while preserving configuration and data, rerun:
-
-```bash
-sudo ./scripts/install-system.sh "$USER"
-```
-
-To uninstall while preserving `/etc/webkde` and `/var/lib/webkde`:
+Apply the current checkout while preserving configuration and data with:
 
 ```bash
-sudo ./scripts/uninstall-system.sh
+./scripts/deploy.sh
 ```
 
-Pass `--purge` only when the credentials and persistent container data should
-also be deleted.
+Remove the service links and generated units while preserving `.env` and
+`data/config` with:
+
+```bash
+./scripts/undeploy.sh
+```
+
+Pass `--purge` to delete that checkout's credentials and persistent container
+data as well.
 
 ## Audio
 
@@ -230,7 +302,7 @@ than upstream Selkies:
 WEBKDE_SCROLL_SCALE=0.25
 ```
 
-Add or change that value in `/etc/webkde/webkde.env`, then restart WebKDE. A
+Add or change that value in `.env`, then restart that user's WebKDE instance. A
 smaller value scrolls more slowly; accepted values are clamped between `0.05`
 and `4.0`.
 
@@ -256,7 +328,7 @@ lists.
 - Container file transfer, commands, app controls, microphone, and gamepad are
   disabled.
 - Docker access is root-equivalent. Restrict it to trusted host users.
-- Never commit `.env` or credentials copied from `/etc/webkde`.
+- Keep `.env`, `data/`, and `systemd/generated/` git-ignored.
 
 ## Troubleshooting
 
@@ -271,7 +343,7 @@ container logs shown above. Important sockets are:
 
 If a browser shows a stale black frame after an interrupted upgrade, reload one
 tab and close duplicate WebKDE tabs. The session now automatically remaps KWin
-after an outer-compositor restart; `sudo systemctl restart webkde.service`
+after an outer-compositor restart; `systemctl --user restart webkde.service`
 forces a complete clean recovery if necessary.
 
 If a future KWin release uses names other than `WL-0` and `WL-1`, inspect
@@ -280,10 +352,12 @@ adjust `scripts/webkde-bridge.sh` and `container/defaults/sway.conf`.
 
 ## Reproducibility and upstream
 
-The Selkies base image is pinned to a multi-architecture OCI digest. Adopt
-upstream updates deliberately, validate, and rebuild. The image includes a
-narrow, build-verified workaround for the pinned Selkies release's list parser
-so its documented `file_transfers=none` setting actually disables transfers.
+GitHub Actions builds the `linux/amd64` container on every push to `main` and
+publishes `ghcr.io/yiprograms/webkde:latest`, branch, commit-SHA, and semantic
+version tags. The Selkies base image is pinned to an OCI digest. Adopt upstream
+updates deliberately, validate, and rebuild. The image includes a narrow,
+build-verified workaround for the pinned Selkies release's list parser so its
+documented `file_transfers=none` setting disables transfers.
 
 - [LinuxServer Selkies base image](https://github.com/linuxserver/docker-baseimage-selkies)
 - [Selkies](https://github.com/selkies-project/selkies)

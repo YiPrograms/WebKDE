@@ -1,13 +1,15 @@
 [Unit]
 Description=Host-native KDE Plasma session streamed by WebKDE
+PartOf=webkde.service
+After=webkde.service
 
 [Service]
 Type=simple
-Environment=WEBKDE_ENV_FILE=/etc/webkde/webkde.env
-WorkingDirectory=/opt/webkde
-ExecStartPre=/opt/webkde/scripts/wait-wayland.sh @RUNTIME@/wayland-2
-ExecStart=/opt/webkde/scripts/start-plasma.sh
-ExecStartPost=/opt/webkde/scripts/initial-display-mode.sh
+Environment=WEBKDE_ENV_FILE=@ENV_FILE@
+WorkingDirectory=@APP_DIR@
+ExecStartPre=@APP_DIR@/scripts/wait-wayland.sh @RUNTIME@/wayland-2
+ExecStart=@APP_DIR@/scripts/start-plasma.sh
+ExecStartPost=@APP_DIR@/scripts/initial-display-mode.sh
 ExecStartPost=@SYSTEMCTL@ --user start webkde-bridge.service
 ExecStartPost=@SYSTEMCTL@ --user start webkde-inhibit.service
 # startplasma exits cleanly when its outer Wayland connection disappears.
